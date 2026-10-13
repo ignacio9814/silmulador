@@ -1,0 +1,3780 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roll-in, armario y chiller de agua</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #1a1f27;
+      --panel: #141a22;
+      --line: rgba(255, 255, 255, 0.08);
+      --text: #e7eef6;
+      --muted: #93a0b0;
+      --cold: #3b82f6;
+      --hot: #ff4d3a;
+      --ok: #2fce8a;
+      --warn: #f5b942;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #topbar {
+      flex: none;
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      padding: 10px 12px;
+      background: #10151c;
+      border-bottom: 1px solid var(--line);
+    }
+
+    #tabs {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    #btnReport {
+      flex: 0 0 176px;
+      text-align: left;
+      font: inherit;
+      color: #f8fbff;
+      background: #243044;
+      border: 1px solid rgba(245, 185, 66, 0.55);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      line-height: 1.3;
+    }
+
+    #btnReport small {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      color: #c8b48a;
+    }
+
+    #btnReport[aria-expanded="false"] {
+      color: var(--muted);
+      background: #1a222d;
+      border-color: var(--line);
+    }
+
+    #btnReport[aria-expanded="false"] small { color: #7f8b9c; }
+
+    #tabs button {
+      flex: 1 1 220px;
+      min-width: 210px;
+      text-align: left;
+      font: inherit;
+      color: var(--muted);
+      background: #1a222d;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      line-height: 1.3;
+    }
+
+    #tabs button small {
+      display: block;
+      margin-top: 2px;
+      font-size: 11px;
+      color: #7f8b9c;
+    }
+
+    #tabs button.active {
+      color: var(--text);
+      background: #1a3358;
+      border-color: #60a5fa;
+    }
+
+    #tabs button strong { font-size: 13px; font-weight: 680; }
+
+    #app {
+      display: grid;
+      grid-template-columns: auto 1fr 380px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    #report {
+      width: min(420px, 36vw);
+      min-width: 0;
+      overflow: auto;
+      background: #10151c;
+      border-right: 1px solid var(--line);
+      padding: 22px 18px 28px;
+    }
+
+    #app.report-closed #report {
+      width: 0;
+      padding: 0;
+      border: 0;
+      overflow: hidden;
+    }
+
+    .report-kicker {
+      margin: 0 0 6px;
+      color: #e7c98a;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    #report h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 680;
+      letter-spacing: -0.03em;
+    }
+
+    .report-lead {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .kpi-list, .supplier-list { display: grid; gap: 10px; margin-top: 16px; }
+
+    .kpi, .supplier {
+      background: #161c24;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 12px 10px;
+    }
+
+    .kpi > span, .supplier .tag {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .kpi strong, .supplier h3 {
+      display: block;
+      margin: 4px 0 8px;
+      font-size: 16px;
+      font-weight: 680;
+      letter-spacing: -0.02em;
+    }
+
+    .kpi ul, .supplier p { margin: 0; padding: 0; list-style: none; }
+
+    .kpi li, .supplier p {
+      margin: 0 0 6px;
+      color: #d5dee8;
+      font-size: 12.5px;
+      line-height: 1.4;
+    }
+
+    .kpi b, .supplier b { color: var(--text); font-weight: 680; }
+    .kpi b.roll, .kpi > span.roll { color: #93c5fd; }
+    .kpi b.cab, .kpi > span.cab { color: #86efac; }
+    .kpi b.chill, .kpi > span.chill { color: #fcd34d; }
+
+    .report-block { margin-top: 22px; }
+
+    .report-block h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .xtable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .xtable th, .xtable td {
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .xtable th {
+      color: #9fb0c3;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .xtable td:first-child { color: var(--muted); width: 28%; }
+
+    .xtable .is-on { background: rgba(37, 99, 235, 0.16); }
+
+    .badge-time {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge-time.nat { background: rgba(47, 206, 138, 0.16); color: #b7f7db; }
+    .badge-time.imp { background: rgba(245, 185, 66, 0.16); color: #fde68a; }
+
+    .report-note {
+      margin: 16px 0 0;
+      color: #7f8b9c;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .gear-list { display: grid; gap: 10px; margin-top: 12px; }
+
+    a.gear {
+      display: grid;
+      grid-template-columns: 108px 1fr;
+      min-height: 108px;
+      background: #161c24;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    a.gear img {
+      width: 108px;
+      height: 100%;
+      object-fit: contain;
+      background: #eef3f8;
+    }
+
+    a.gear .body { padding: 10px 12px 10px 0; }
+
+    a.gear h3 {
+      margin: 3px 0 4px;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+      text-transform: none;
+      color: var(--text);
+    }
+
+    a.gear .tag {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    a.gear .tag.roll { color: #93c5fd; }
+    a.gear .tag.cab { color: #86efac; }
+    a.gear .tag.chill { color: #fcd34d; }
+
+    a.gear p {
+      margin: 0;
+      color: #d5dee8;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    a.gear .go {
+      display: inline-block;
+      margin-top: 6px;
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    .legend i {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin-right: 6px;
+      border-radius: 99px;
+      vertical-align: baseline;
+    }
+
+    .roll { color: #93c5fd; }
+    .cab { color: #86efac; }
+    .chill { color: #fcd34d; }
+    i.roll { background: #3b82f6; }
+    i.cab { background: #34d399; }
+    i.chill { background: #fbbf24; }
+
+    #cmp th:nth-child(2),
+    #cmp td:nth-child(2) { box-shadow: inset 3px 0 0 #3b82f6; }
+    #cmp th:nth-child(3),
+    #cmp td:nth-child(3) { box-shadow: inset 3px 0 0 #34d399; }
+    #cmp th:nth-child(4),
+    #cmp td:nth-child(4) { box-shadow: inset 3px 0 0 #fbbf24; }
+    #cmp th:nth-child(2) { color: #93c5fd; }
+    #cmp th:nth-child(3) { color: #86efac; }
+    #cmp th:nth-child(4) { color: #fcd34d; }
+
+    .measure { border-left: 3px solid #3b82f6; }
+    .measure.cab { border-left-color: #34d399; }
+    .measure.chill { border-left-color: #fbbf24; }
+
+    .seg {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .seg button {
+      flex: 1;
+      border: 1px solid var(--line);
+      background: #1a222d;
+      color: #9eacbc;
+      border-radius: 10px;
+      padding: 8px 8px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .seg button.on {
+      color: var(--text);
+      background: #1a3358;
+      border-color: #60a5fa;
+    }
+
+    .seg button:disabled { opacity: 0.45; cursor: default; }
+
+    .format-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .deep-list {
+      margin: 12px 0 0;
+      padding: 12px 12px 6px;
+      list-style: none;
+      background: #161c24;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .deep-list li {
+      margin: 0 0 6px;
+      color: #d5dee8;
+      font-size: 12.5px;
+      line-height: 1.4;
+    }
+
+    #panels {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+    }
+
+    .side {
+      padding: 22px 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 100%;
+    }
+
+    .banner {
+      position: absolute;
+      z-index: 3;
+      left: 16px;
+      right: 16px;
+      top: 62px;
+      max-width: 680px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .banner strong { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .banner p { margin: 0; line-height: 1.45; font-size: 14px; }
+    .banner button {
+      align-self: flex-start;
+      margin-top: 4px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      background: transparent;
+      color: inherit;
+      padding: 6px 12px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .banner.warn { background: #3a2a10; border: 1px solid #f5b942; color: #fde68a; }
+    .banner.err { background: #3f1d24; border: 1px solid #fb7185; color: #fecdd3; }
+
+    .actions-stack { grid-template-columns: 1fr; }
+
+    #view {
+      position: relative;
+      min-width: 0;
+      min-height: 320px;
+      background: var(--bg);
+    }
+
+    #view canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    #view.dragging canvas { cursor: grabbing; }
+
+    #view::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, 0.28) 100%);
+    }
+
+    .hud, .hint, #fatal {
+      position: absolute;
+      z-index: 2;
+    }
+
+    .hud {
+      top: 14px;
+      left: 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge, .hud button, .hint {
+      background: rgba(12, 16, 22, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+    }
+
+    .badge, .hint {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      padding: 7px 12px;
+    }
+
+    .hud button, .text-btn, .actions button {
+      font: inherit;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .hud button {
+      padding: 7px 12px;
+      font-size: 12px;
+    }
+
+    .hint {
+      left: 14px;
+      bottom: 14px;
+      pointer-events: none;
+    }
+
+    #fatal {
+      left: 14px;
+      right: 14px;
+      top: 56px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #3f1d24;
+      color: #ffd7dc;
+      border: 1px solid rgba(255, 120, 140, 0.4);
+    }
+
+    #panel { background: transparent; }
+
+    header.brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(160deg, #1d4ed8, #0f172a);
+      border: 1px solid rgba(147, 197, 253, 0.35);
+      flex: none;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+
+    header p, .group-label, .foot, .metric span {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pill {
+      align-self: flex-start;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .pill.idle { background: #243041; color: #c5d0dc; }
+    .pill.hot { background: rgba(255, 77, 58, 0.16); color: #ffb4ac; }
+    .pill.run { background: rgba(59, 130, 246, 0.18); color: #bfdbfe; }
+    .pill.pause { background: rgba(245, 185, 66, 0.16); color: #fde68a; }
+    .pill.hold { background: rgba(47, 206, 138, 0.16); color: #b7f7db; }
+
+    .actions, .metrics { display: grid; gap: 10px; }
+    .actions { grid-template-columns: 1fr 1fr; }
+
+    .actions button, .text-btn {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #222a36;
+      padding: 12px 10px;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .actions button strong, .text-btn { display: block; font-size: 13px; }
+    .actions button small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .actions button.btn-primary, #btnBlast {
+      background: linear-gradient(180deg, #2563eb, #1d4ed8);
+      border-color: #60a5fa;
+      color: #f8fbff;
+    }
+
+    .actions button.btn-danger {
+      background: #3f1d24;
+      border-color: #fb7185;
+      color: #fecdd3;
+    }
+
+    .warn-btn {
+      border-color: rgba(245, 185, 66, 0.7);
+      color: #fde68a;
+    }
+
+    .actions button:hover:not(:disabled), .text-btn:hover:not(:disabled), .hud button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    button:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+
+    .text-btn {
+      width: 100%;
+      text-align: center;
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .metrics { grid-template-columns: 1fr 1fr; }
+
+    .metric {
+      background: #10161e;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px 12px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 22px;
+      font-weight: 680;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric em {
+      font-style: normal;
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    .bar, .scale {
+      height: 8px;
+      border-radius: 99px;
+      background: #0c1118;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .bar > div {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #60a5fa, #2563eb);
+    }
+
+    .scale {
+      background: linear-gradient(90deg, #ff3b30, #ff7a1a, #ffc857, #f3f0e4, #9fd0ff, #2f6bff);
+    }
+
+    .scale-labels, .status {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .status {
+      display: block;
+      min-height: 2.6em;
+      line-height: 1.45;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .curve {
+      width: 100%;
+      height: 92px;
+      display: block;
+      background: #10161e;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      cursor: ew-resize;
+      touch-action: none;
+    }
+
+    .curve-hint {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .foot { line-height: 1.45; }
+
+    @media (max-width: 1180px) {
+      body { overflow: auto; }
+      #topbar { flex-wrap: wrap; }
+      #btnReport { flex: 1 1 160px; }
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(420px, 58vh) auto;
+        flex: none;
+        height: auto;
+      }
+      #report { width: auto; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+      #app.report-closed #report { display: none; }
+      #panels { border-left: 0; border-top: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <header id="topbar">
+    <button id="btnReport" type="button" aria-expanded="true" aria-controls="report">
+      <strong>Informe ejecutivo</strong>
+      <small>Ocultar panel</small>
+    </button>
+  <nav id="tabs" role="tablist" aria-label="Sistemas de enfriamiento">
+    <button type="button" class="active" role="tab" aria-selected="true" data-mode="rollin">
+      <strong>Abatidor Roll-In (Carro 201)</strong>
+      <small>20 niveles · condensadora remota</small>
+    </button>
+    <button type="button" role="tab" aria-selected="false" data-mode="cabinet">
+      <strong>Abatidor Armario (15 Bandejas - Plug & Play)</strong>
+      <small>Compresor en la base · sin unidad remota</small>
+    </button>
+    <button type="button" role="tab" aria-selected="false" data-mode="chiller">
+      <strong>Chiller de Agua (Friotex)</strong>
+      <small>Serpentín sumergido · estanque a +1 °C</small>
+    </button>
+  </nav>
+  </header>
+  <div id="app">
+    <aside id="report" aria-label="Informe ejecutivo comercial">
+      <p class="report-kicker">Decisión de compra</p>
+      <h2>Informe ejecutivo comercial</h2>
+      <p class="report-lead">Tres sistemas para enfriar producción gastronómica. El Roll-In toma el carro completo. El armario es la alternativa compacta. El chiller de agua resuelve líquidos y no reemplaza a las bandejas.</p>
+      <div class="legend">
+        <span><i class="roll"></i>Roll-In</span>
+        <span><i class="cab"></i>Armario</span>
+        <span><i class="chill"></i>Chiller de agua</span>
+      </div>
+
+      <div class="kpi-list">
+        <article class="kpi">
+          <span>Consumo eléctrico</span>
+          <strong>Pico de potencia en el ciclo</strong>
+          <ul>
+            <li><b class="roll">Roll-In</b> — 16,0 kW al inicio. Cerca de 3 °C baja a 7,2 kW. Mantenimiento: 2,4 kW.</li>
+            <li><b class="cab">Armario</b> — 5,0 kW al inicio y 2,4 kW al final. Con sobrecarga del carro 201, el rendimiento cae un 30 %.</li>
+            <li><b class="chill">Chiller de agua</b> — 7,6 kW mientras corre el proceso. Mantenimiento a +1 °C: 2,2 kW.</li>
+          </ul>
+        </article>
+        <article class="kpi">
+          <span>Capacidad de carga</span>
+          <strong>Qué entra en cada equipo</strong>
+          <ul>
+            <li><b class="roll">Roll-In</b> — carro Rational 201, 20 bandejas GN 1/1 de 65 mm (64 kg). Con cubetas de 20 L entran 6.</li>
+            <li><b class="cab">Armario</b> — 15 bandejas de 65 mm (3,2 kg, 48 kg) o 5 cubetas de 20 L. El tope sigue en 50 kg.</li>
+            <li><b class="chill">Chiller de agua</b> — salsa o masa en circuito cerrado, caudal 2,4 m³/h. No admite sólidos ni bandejas.</li>
+          </ul>
+        </article>
+        <article class="kpi">
+          <span>Tiempos de abatimiento</span>
+          <strong>Ciclo nominal de 90 minutos</strong>
+          <ul>
+            <li><b class="roll">Roll-In</b> — de 90 °C a 3 °C, con aire a −35 °C.</li>
+            <li><b class="cab">Armario</b> — de 90 °C a 3 °C, con aire interno a −35 °C.</li>
+            <li><b class="chill">Chiller de agua</b> — producto de 70 °C a +1 °C. El agua del circuito se mantiene a +1 °C.</li>
+          </ul>
+        </article>
+      </div>
+
+      <section class="report-block">
+        <h3>Medidas aproximadas en la escena</h3>
+        <p class="report-lead">Son las medidas del modelo 3D, redondeadas, para estimar la planta. No reemplazan un relevamiento de obra.</p>
+        <div class="kpi-list">
+          <article class="kpi measure">
+            <span class="roll">Roll-In</span>
+            <strong>2,76 × 2,18 m en planta</strong>
+            <ul>
+              <li>Celda: 1,14 m de ancho, 1,36 m de fondo y 2,34 m de alto.</li>
+              <li>La rampa suma 0,82 m por delante de la puerta.</li>
+              <li>Condensadora remota: 0,90 × 0,56 × 0,86 m, al costado derecho.</li>
+            </ul>
+          </article>
+          <article class="kpi measure cab">
+            <span class="cab">Armario</span>
+            <strong>0,78 × 0,80 × 1,90 m</strong>
+            <ul>
+              <li>Cuerpo compacto, con el compresor en la base.</li>
+              <li>Puerta abierta: unos 0,40 m al frente y 0,65 m del lado de la bisagra.</li>
+              <li>El cable de la escena sale unos 0,35 m por la derecha.</li>
+            </ul>
+          </article>
+          <article class="kpi measure chill">
+            <span class="chill">Chiller de agua</span>
+            <strong>3,60 × 0,85 × 0,90 m</strong>
+            <ul>
+              <li>Equipo Friotex: 0,48 × 0,52 × 0,70 m.</li>
+              <li>Tanque cerrado: 1,02 × 0,70 × 0,90 m.</li>
+              <li>Estanque de proceso: 0,98 × 0,78 m. La línea completa queda en unos 3,60 m.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="report-block">
+        <h3>Bandeja profunda GN 1/1 de 20 L</h3>
+        <p class="report-lead">La cubeta EN 631 de 150 mm mide 530 × 325 mm y carga unos 20 litros. Llena pesa cerca de 20 kg, más 1,7 kg de acero. El carro Rational 201 tiene 20 guías a 65 mm. En esta escena el paso es 72 mm. Dos guías no alcanzan (130 mm reales, 144 mm en el modelo), así que cada cubeta ocupa 3 guías y deja aire hasta la siguiente.</p>
+        <div class="seg" role="group" aria-label="Formato de bandeja en la simulación">
+          <button type="button" data-format="low" class="on">Simular bandeja de 65 mm</button>
+          <button type="button" data-format="deep">Simular cubeta de 20 L</button>
+        </div>
+        <ul class="deep-list">
+          <li><b class="roll">Roll-In</b> — entran 6 cubetas, no 20. Llenas, unos 120 kg.</li>
+          <li><b class="cab">Armario</b> — entran 5 por altura, no 15. Llenas, unos 100 kg, por encima del tope de 50 kg.</li>
+          <li><b class="chill">Chiller</b> — no admite bandejas ni carro.</li>
+        </ul>
+      </section>
+
+      <section class="report-block">
+        <h3>Comparación de sistemas</h3>
+        <table class="xtable" id="cmp">
+          <thead>
+            <tr>
+              <th>Criterio</th>
+              <th>Roll-In</th>
+              <th>Armario</th>
+              <th>Chiller</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Formato</td>
+              <td>Celda roll-in</td>
+              <td>Gabinete plug &amp; play</td>
+              <td>Tanque de agua</td>
+            </tr>
+            <tr>
+              <td>Carga</td>
+              <td>20 × GN 1/1</td>
+              <td>15 × GN 1/1</td>
+              <td>Salsa / masa</td>
+            </tr>
+            <tr>
+              <td>Peso útil</td>
+              <td>64 kg</td>
+              <td>50 kg</td>
+              <td>Circuito líquido</td>
+            </tr>
+            <tr>
+              <td>Medio</td>
+              <td>Aire −35 °C</td>
+              <td>Aire −35 °C</td>
+              <td>Agua +1 °C</td>
+            </tr>
+            <tr>
+              <td>Meta del producto</td>
+              <td>3 °C</td>
+              <td>3 °C</td>
+              <td>+1 °C</td>
+            </tr>
+            <tr>
+              <td>Tiempo</td>
+              <td>90 min</td>
+              <td>90 min</td>
+              <td>90 min</td>
+            </tr>
+            <tr>
+              <td>Potencia pico</td>
+              <td>16,0 kW</td>
+              <td>5,0 kW</td>
+              <td>7,6 kW</td>
+            </tr>
+            <tr>
+              <td>Instalación</td>
+              <td>Condensadora remota y cañerías de cobre</td>
+              <td>Compresor en la base. Solo conexión eléctrica</td>
+              <td>Equipo autocontenido y estanque de proceso</td>
+            </tr>
+            <tr>
+              <td>Uso indicado</td>
+              <td>Producción con carro 201</td>
+              <td>Lotes chicos, sin obra de frío</td>
+              <td>iVario y panadería</td>
+            </tr>
+            <tr>
+              <td>Huella</td>
+              <td>Celda 1,14 × 1,36 × 2,34 m. Con rampa y condensadora, 2,76 × 2,18 m</td>
+              <td>0,78 × 0,80 × 1,90 m</td>
+              <td>Línea 3,60 × 0,85 × 0,90 m</td>
+            </tr>
+            <tr>
+              <td>Cubeta 20 L</td>
+              <td>6 en el carro. Unas 120 kg llenas</td>
+              <td>5 por altura. 100 kg, supera 50 kg</td>
+              <td>No admite</td>
+            </tr>
+            <tr>
+              <td>Límite</td>
+              <td>Requiere espacio de celda y unidad exterior</td>
+              <td>5 bandejas del 201 quedan afuera</td>
+              <td>No admite carro ni bandejas abiertas</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="report-block">
+        <h3>Proveedores en Argentina</h3>
+        <div class="supplier-list">
+          <article class="supplier">
+            <span class="tag">Opción nacional</span>
+            <h3>Ingeniería Gastronómica / Frío-Raf</h3>
+            <p>Fabricación local para la alternativa nacional del proyecto.</p>
+            <span class="badge-time nat">Entrega 20–30 días</span>
+          </article>
+          <article class="supplier">
+            <span class="tag">Importado · Techfrost</span>
+            <h3>Baires Cocina</h3>
+            <p>Representación en Argentina de la línea Techfrost.</p>
+            <span class="badge-time imp">Entrega 30–60 días</span>
+          </article>
+        </div>
+        <p class="report-note">El plazo nacional es de 20 a 30 días. El importado, de 30 a 60 días, con el tiempo de fabricación y llegada. Las potencias y los tiempos de este informe son los del simulador, para comparar equipos en una reunión de decisión. No reemplazan una medición en obra.</p>
+      </section>
+
+      <section class="report-block">
+        <h3>Así se ven</h3>
+        <p class="report-lead">Fotos de catálogo de los equipos del informe y de tres marcas de referencia. El enlace abre la ficha para cotizar. Este informe no publica precios.</p>
+        <div class="gear-list">
+          <a class="gear" href="https://bairescocina.com/equipment/producto/abatidor-de-temperatura-linea-master-modelo-mcr20" target="_blank" rel="noopener noreferrer">
+            <img src="https://bairescocina.com/storage/app/media/equipment/productos/techfrost/abatidor-mcr20/abatidor-mcr20-1.png" alt="Abatidor roll-in Techfrost Master MCR20" referrerpolicy="no-referrer">
+            <div class="body">
+              <span class="tag roll">Roll-In · Techfrost</span>
+              <h3>Master MCR20</h3>
+              <p>Un carro y 20 bandejas GN 1/1 Rational. Es el formato de la celda roll-in. Lo comercializa Baires Cocina.</p>
+              <span class="go">Cotizar en Baires Cocina</span>
+            </div>
+          </a>
+          <a class="gear" href="https://bairescocina.com/equipment/producto/abatidor-de-temperatura-linea-master-modelo-m15" target="_blank" rel="noopener noreferrer">
+            <img src="https://bairescocina.com/storage/app/media/equipment/productos/techfrost/abatidor-m15/abatidor-m15-1.png" alt="Abatidor armario Techfrost Master M15" referrerpolicy="no-referrer">
+            <div class="body">
+              <span class="tag cab">Armario · Techfrost</span>
+              <h3>Master M15</h3>
+              <p>15 bandejas GN 1/1. En la ficha, 50 kg de 90 °C a 3 °C en 90 min. Medidas de catálogo: 820 × 894 × 1930 mm.</p>
+              <span class="go">Cotizar en Baires Cocina</span>
+            </div>
+          </a>
+          <a class="gear" href="https://ig.com.ar/refrigeracion/" target="_blank" rel="noopener noreferrer">
+            <img src="https://ig.com.ar/wp-content/uploads/2021/12/ABATIDOR-DE-TEMPERATURA.jpg" alt="Abatidor de temperatura de Ingeniería Gastronómica" referrerpolicy="no-referrer">
+            <div class="body">
+              <span class="tag cab">Armario · opción nacional</span>
+              <h3>Ingeniería Gastronómica</h3>
+              <p>Abatidor de fabricación local. La consulta sale de su línea de refrigeración.</p>
+              <span class="go">Ver en Ingeniería Gastronómica</span>
+            </div>
+          </a>
+          <a class="gear" href="https://friotex.com.ar/abatidores/" target="_blank" rel="noopener noreferrer">
+            <img src="https://friotex.com.ar/wp-content/uploads/2022/04/C-10-Abatidor-exterior-scaled-500x338.jpg" alt="Enfriador de agua Friotex" referrerpolicy="no-referrer">
+            <div class="body">
+              <span class="tag chill">Chiller de agua · Friotex</span>
+              <h3>Enfriador de agua</h3>
+              <p>Tanque de acero para enfriar agua de panadería, pastas y producción. No reemplaza a las bandejas.</p>
+              <span class="go">Ver en Friotex</span>
+            </div>
+          </a>
+        </div>
+        <h3 style="margin-top: 18px">Tres marcas de referencia</h3>
+        <div class="gear-list">
+          <a class="gear" href="https://bairescocina.com/equipment/abatidores-de-temperatura" target="_blank" rel="noopener noreferrer">
+            <img src="https://bairescocina.com/storage/app/media/equipment/productos/techfrost/abatidor-m15/abatidor-m15-1.png" alt="Línea de abatidores Techfrost" referrerpolicy="no-referrer">
+            <div class="body">
+              <span class="tag">Italia · en Argentina</span>
+              <h3>Techfrost</h3>
+              <p>Especialista en abatidores desde 1995. En el país lo representa Baires Cocina, con armario y roll-in.</p>
+              <span class="go">Ver la línea y cotizar</span>
+            </div>
+          </a>
+          <a class="gear" href="https://www.irinoxprofessional.com/en_ww/products/roll-in-blast-chillers/multifresh-next-xl-xxl" target="_blank" rel="noopener noreferrer">
+            <img src="https://api.irinoxprofessional.com/assets/general/Prodotti/Still_MFN_trequarti_XL.png" alt="Abatidor roll-in Irinox MultiFresh Next XL" referrerpolicy="no-referrer">
+            <div class="body">
+              <span class="tag">Italia</span>
+              <h3>Irinox MultiFresh Next</h3>
+              <p>Referencia de alta gama. El XL es roll-in, hasta 100 kg por ciclo. La ficha es del fabricante.</p>
+              <span class="go">Ver ficha Irinox</span>
+            </div>
+          </a>
+          <a class="gear" href="https://coldline.it/es/prodotti/abbattitori-di-temperatura-multifunzione-ristorazione-pasticceria-gelateria/vision-abbattitore-di-temperatura" target="_blank" rel="noopener noreferrer">
+            <img src="https://coldline.it/Categorie%20prodotti/Vision/image-thumb__36494__widget_text_right_image_fluid/Vision%20R290.jpg" alt="Abatidor Coldline Vision" referrerpolicy="no-referrer">
+            <div class="body">
+              <span class="tag">Italia</span>
+              <h3>Coldline Vision</h3>
+              <p>Armario multifunción, de −40 °C a calor, con gas R290. La ficha es del fabricante.</p>
+              <span class="go">Ver ficha Coldline</span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </aside>
+    <div id="view">
+      <div class="hud">
+        <span class="badge">Vista isométrica</span>
+        <button id="btnIso" type="button">Restablecer cámara</button>
+      </div>
+      <p class="hint">Arrastrá para orbitar · rueda para zoom · clic derecho para desplazar</p>
+      <div id="alertBanner" class="banner" role="alert" hidden>
+        <strong id="alertTitle"></strong>
+        <p id="alertBody"></p>
+        <button id="alertClose" type="button">Cerrar</button>
+      </div>
+      <div id="fatal" hidden></div>
+    </div>
+
+    <div id="panels">
+    <aside id="panel" class="side">
+      <header class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2v20M4.5 7.5l15 9M19.5 7.5l-15 9" stroke="#dbeafe" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Abatidor roll-in</h1>
+          <p>Celda aislada · carro Rational 201 · 20 × GN 1/1</p>
+        </div>
+      </header>
+
+      <div id="pill" class="pill hot">En caliente</div>
+
+      <div>
+        <p class="group-label">Formato de bandeja</p>
+        <div class="seg" role="group" aria-label="Formato de bandeja">
+          <button type="button" data-format="low" class="on">GN 1/1 · 65 mm</button>
+          <button type="button" data-format="deep">GN 1/1 · 20 L</button>
+        </div>
+        <p class="format-note" data-format-note>Bandeja GN 1/1 de 65 mm. El carro lleva 20.</p>
+      </div>
+
+      <div>
+        <p class="group-label">Meter / Sacar carro</p>
+        <div class="actions" style="margin-top: 8px">
+          <button id="btnCart" type="button">
+            <strong>Meter carro</strong>
+            <small>Entra rodando por la rampa</small>
+          </button>
+          <button id="btnBlast" class="btn-primary" type="button">
+            <strong>Iniciar abatimiento</strong>
+            <small>Aire a −35 °C · 90 min</small>
+          </button>
+        </div>
+        <button id="btnReset" class="text-btn" type="button" hidden>Volver a 90 °C</button>
+      </div>
+
+      <div class="metrics">
+        <div class="metric">
+          <span>Temperatura del producto</span>
+          <strong id="tempValue">90,0<em> °C</em></strong>
+        </div>
+        <div class="metric">
+          <span>Temperatura del aire</span>
+          <strong id="airValue">—</strong>
+        </div>
+        <div class="metric">
+          <span>Tiempo transcurrido</span>
+          <strong id="timeValue">00:00<em> / 90:00</em></strong>
+        </div>
+        <div class="metric">
+          <span>Potencia frigorífica</span>
+          <strong id="powerValue">0,0<em> kW</em></strong>
+        </div>
+      </div>
+
+      <div>
+        <div class="bar" aria-hidden="true"><div id="barFill"></div></div>
+        <div class="scale" style="margin-top: 10px" title="Color de las bandejas según temperatura"></div>
+        <div class="scale-labels">
+          <span>90 °C</span>
+          <span id="rollScaleLabel">Bandejas GN 1/1 · 65 mm</span>
+          <span>3 °C</span>
+        </div>
+      </div>
+
+      <canvas id="chart" class="curve" width="640" height="150" aria-label="Curva de abatimiento. Arrastrá el punto para recorrer el ciclo."></canvas>
+      <p class="curve-hint">Arrastrá el punto por la curva. Tiempo, temperaturas, potencia y color siguen ese momento.</p>
+      <p id="statusText" class="status">Carro fuera de la celda, con las bandejas a 90 °C.</p>
+      <p class="foot">Ocupa en la escena: celda 1,14 × 1,36 × 2,34 m. Con rampa y condensadora, unos 2,76 × 2,18 m en planta. Ciclo de 90 minutos reproducido en 60 segundos.</p>
+    </aside>
+
+    <aside id="panelCab" class="side" hidden>
+      <header class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="4" y="3" width="16" height="18" rx="2" stroke="#dbeafe" stroke-width="1.8"/>
+            <path d="M8 21v-4h8v4" stroke="#dbeafe" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Abatidor armario</h1>
+          <p>15 bandejas GN 1/1 · plug & play · compresor en la base</p>
+        </div>
+      </header>
+      <div id="cabPill" class="pill idle">Vacío</div>
+      <div>
+        <p class="group-label">Formato de bandeja</p>
+        <div class="seg" role="group" aria-label="Formato de bandeja del armario">
+          <button type="button" data-format="low" class="on">GN 1/1 · 65 mm</button>
+          <button type="button" data-format="deep">GN 1/1 · 20 L</button>
+        </div>
+        <p class="format-note" data-format-note>Bandeja GN 1/1 de 65 mm. Entran 15, de a una.</p>
+      </div>
+      <div>
+        <p class="group-label">Cargar / Vaciar bandejas</p>
+        <div class="actions" style="margin-top: 8px">
+          <button id="btnCabLoad" type="button">
+            <strong>Cargar bandejas</strong>
+            <small>Entran de a una, hasta 15</small>
+          </button>
+          <button id="btnCabBlast" class="btn-primary" type="button">
+            <strong>Iniciar abatimiento</strong>
+            <small>Aire interno · tope 50 kg</small>
+          </button>
+        </div>
+        <button id="btnCabOver" class="text-btn warn-btn" type="button">Intentar cargar el carro 201 (20 bandejas)</button>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <span>Bandejas dentro</span>
+          <strong id="cabCount">0<em> / 15</em></strong>
+        </div>
+        <div class="metric">
+          <span>Carga</span>
+          <strong id="cabKg">0,0<em> / 50 kg</em></strong>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <span>Temperatura del producto</span>
+          <strong id="cabTemp">—</strong>
+        </div>
+        <div class="metric">
+          <span>Temperatura del aire</span>
+          <strong id="cabAir">—</strong>
+        </div>
+        <div class="metric">
+          <span>Tiempo transcurrido</span>
+          <strong id="cabTime">00:00<em> / 90:00</em></strong>
+        </div>
+        <div class="metric">
+          <span>Potencia frigorífica</span>
+          <strong id="cabPower">0,0<em> kW</em></strong>
+        </div>
+      </div>
+      <div>
+        <div class="bar" aria-hidden="true"><div id="cabBar"></div></div>
+        <div class="scale" style="margin-top: 10px" title="Color de las bandejas según temperatura"></div>
+        <div class="scale-labels">
+          <span>90 °C</span>
+          <span id="cabScaleLabel">Bandejas GN 1/1 · 65 mm</span>
+          <span>3 °C</span>
+        </div>
+      </div>
+      <canvas id="cabChart" class="curve" width="640" height="150" aria-label="Curva de abatimiento del armario. Arrastrá el punto para recorrer el ciclo."></canvas>
+      <p class="curve-hint">Arrastrá el punto por la curva. Tiempo, temperaturas, potencia y color siguen ese momento.</p>
+      <p id="cabStatus" class="status">Armario vacío. El compresor está en la base: no hay cañerías ni condensadora remota.</p>
+      <p class="foot" id="cabFoot">Ocupa 0,78 × 0,80 × 1,90 m. Cada bandeja de 65 mm pesa 3,2 kg. Quince son 48 kg. Un carro Rational 201 trae 20 (64 kg): cinco no entran y el equipo queda sobrecargado.</p>
+    </aside>
+
+    <aside id="panelChill" class="side" hidden>
+      <header class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3c2 3 5 5.2 5 9a5 5 0 0 1-10 0c0-3.8 3-6 5-9z" stroke="#dbeafe" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Chiller de agua</h1>
+          <p>Friotex · serpentín de cobre sumergido · estanque a +1 °C</p>
+        </div>
+      </header>
+      <div id="chillPill" class="pill idle">En espera</div>
+      <div>
+        <p class="group-label">Circuito de proceso</p>
+        <div class="actions actions-stack" style="margin-top: 8px">
+          <button id="btnChillRun" class="btn-primary" type="button">
+            <strong>Enfriar Salsa / Masa</strong>
+            <small>Agua helada en circuito cerrado</small>
+          </button>
+          <button id="btnChillReject" class="btn-danger" type="button">
+            <strong>Intentar meter carro o bandejas</strong>
+            <small>Este equipo no admite sólidos</small>
+          </button>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <span>Temperatura del producto</span>
+          <strong id="chillProcess">70,0<em> °C</em></strong>
+        </div>
+        <div class="metric">
+          <span>Temperatura del agua</span>
+          <strong id="chillWater">18,0<em> °C</em></strong>
+        </div>
+        <div class="metric">
+          <span>Tiempo transcurrido</span>
+          <strong id="chillTime">00:00<em> / 90:00</em></strong>
+        </div>
+        <div class="metric">
+          <span>Potencia frigorífica</span>
+          <strong id="chillPower">0,0<em> kW</em></strong>
+        </div>
+      </div>
+      <div>
+        <div class="bar" aria-hidden="true"><div id="chillBar"></div></div>
+        <div class="scale" style="margin-top: 10px" title="Color de la salsa o la masa según temperatura"></div>
+        <div class="scale-labels">
+          <span>70 °C</span>
+          <span>Salsa / masa</span>
+          <span>+1 °C</span>
+        </div>
+      </div>
+      <canvas id="chillChart" class="curve" width="640" height="150" aria-label="Curva de enfriamiento de salsa y masa. Arrastrá el punto para recorrer el ciclo."></canvas>
+      <p class="curve-hint">Arrastrá el punto por la curva. Tiempo, temperaturas, caudal y potencia siguen ese momento.</p>
+      <div class="metrics">
+        <div class="metric">
+          <span>Caudal</span>
+          <strong id="chillFlow">0,0<em> m³/h</em></strong>
+        </div>
+      </div>
+      <p id="chillStatus" class="status">Tanque cerrado con serpentín sumergido. El agua va y vuelve del estanque de proceso, que se mantiene a +1 °C.</p>
+      <p class="foot">Ocupa una línea de unos 3,60 × 0,85 × 0,90 m: equipo 0,48 × 0,52 × 0,70 m, tanque 1,02 × 0,70 × 0,90 m y estanque 0,98 × 0,78 m. Sirve para salsas de la iVario o masas de panadería. No se introducen alimentos sólidos ni bandejas abiertas.</p>
+    </aside>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const fatal = document.getElementById("fatal");
+      window.addEventListener("error", (event) => {
+        fatal.hidden = false;
+        fatal.textContent = event.message;
+      });
+
+      if (typeof THREE === "undefined") {
+        fatal.hidden = false;
+        fatal.textContent = "No se pudo cargar Three.js. Hace falta conexión a internet para el CDN.";
+        return;
+      }
+
+      const DIM = {
+        wall: 0.08,
+        innerW: 0.98,
+        innerD: 1.2,
+        innerH: 2.16,
+        floorH: 0.1,
+        headerH: 0.16
+      };
+
+      const SILL_Z = DIM.innerD / 2 + DIM.wall;
+      const CEIL_Y = DIM.floorH + DIM.innerH;
+      const OUTER_X = DIM.innerW / 2 + DIM.wall;
+      const RAMP_LEN = 0.82;
+      const RAMP_W = 0.9;
+
+      const CART = {
+        wheelR: 0.05,
+        wheelW: 0.028,
+        wheelbase: 0.58,
+        track: 0.48,
+        levels: 20,
+        pitch: 0.072,
+        firstY: 0.24,
+        d: 0.76
+      };
+
+      const IN_Z = -0.02;
+      const OUT_Z = SILL_Z + RAMP_LEN + CART.d / 2 + 0.12;
+      const CYCLE_MS = 60000;
+      const MOVE_MS = 3800;
+      const HINGE_X = -DIM.innerW / 2 - 0.02;
+      const DOOR_W = DIM.innerW + 0.06;
+      const DOOR_H = DIM.innerH - DIM.headerH - 0.02;
+      const DOOR_T = 0.055;
+
+      const COND_W = 0.9;
+      const COND_H = 0.78;
+      const COND_D = 0.56;
+      const COND_X = OUTER_X + 0.72 + COND_W / 2;
+      const COND_Z = -0.1;
+      const PLINTH = 0.08;
+
+      const sim = {
+        cartZ: OUT_Z,
+        cartFrom: OUT_Z,
+        cartTo: OUT_Z,
+        cartT: 1,
+        moving: false,
+        goingIn: false,
+        inside: false,
+        blasting: false,
+        holding: false,
+        paused: false,
+        elapsed: 0,
+        spin: 0,
+        avg: 90,
+        wheels: [],
+        fans: [],
+        trayMats: [],
+        levels: [],
+        temps: Array.from({ length: 20 }, () => 90)
+      };
+
+      const isoPhi = Math.acos(1 / Math.sqrt(3));
+      const viewPresets = {
+        rollin: { theta: Math.PI / 4, phi: isoPhi, radius: 16, frustum: 3.05, target: new THREE.Vector3(0.42, 1.02, 0.78) },
+        cabinet: { theta: Math.PI / 4, phi: isoPhi, radius: 12, frustum: 1.72, target: new THREE.Vector3(0.22, 0.9, 0.32) },
+        chiller: { theta: Math.PI / 4, phi: isoPhi, radius: 12, frustum: 2.15, target: new THREE.Vector3(0.55, 0.55, 0.18) }
+      };
+      function cloneView(src) {
+        return {
+          theta: src.theta,
+          phi: src.phi,
+          radius: src.radius,
+          frustum: src.frustum,
+          target: src.target.clone()
+        };
+      }
+      const views = {
+        rollin: cloneView(viewPresets.rollin),
+        cabinet: cloneView(viewPresets.cabinet),
+        chiller: cloneView(viewPresets.chiller)
+      };
+      let mode = "rollin";
+      let view = views.rollin;
+
+      const viewEl = document.getElementById("view");
+      let renderer;
+      try {
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+      } catch (error) {
+        fatal.hidden = false;
+        fatal.textContent = "WebGL no está disponible en este navegador.";
+        return;
+      }
+
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setClearColor(0x1a1f27, 1);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      viewEl.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      let activeScene = scene;
+      const sceneMap = { rollin: scene };
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, 80);
+
+      const TEMP_STOPS = [
+        { t: 90, color: new THREE.Color(0xff3b30) },
+        { t: 68, color: new THREE.Color(0xff7a1a) },
+        { t: 48, color: new THREE.Color(0xffc857) },
+        { t: 30, color: new THREE.Color(0xf3f0e4) },
+        { t: 16, color: new THREE.Color(0x9fd0ff) },
+        { t: 3, color: new THREE.Color(0x2f6bff) }
+      ];
+
+      const _color = new THREE.Color();
+      const _right = new THREE.Vector3();
+      const _up = new THREE.Vector3();
+      const _yAxis = new THREE.Vector3(0, 1, 0);
+      const _dir = new THREE.Vector3();
+      const _dummy = new THREE.Object3D();
+
+      function makeCanvasTexture(draw, w, h, repeatX, repeatY) {
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        draw(canvas.getContext("2d"), w, h);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.anisotropy = 8;
+        if (repeatX) texture.repeat.set(repeatX, repeatY || repeatX);
+        return texture;
+      }
+
+      function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function makeTextTexture(title, subtitle) {
+        return makeCanvasTexture((ctx, w, h) => {
+          ctx.fillStyle = "#1e2936";
+          ctx.fillRect(0, 0, w, h);
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 8;
+          ctx.strokeRect(8, 8, w - 16, h - 16);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "#e8eef5";
+          ctx.font = "700 46px Segoe UI, sans-serif";
+          ctx.fillText(title, w / 2, subtitle ? 58 : h / 2);
+          if (subtitle) {
+            ctx.fillStyle = "#9fb0c3";
+            ctx.font = "500 26px Segoe UI, sans-serif";
+            ctx.fillText(subtitle, w / 2, 98);
+          }
+        }, 640, 160);
+      }
+
+      function paintLabel(text) {
+        return makeCanvasTexture((ctx, w, h) => {
+          ctx.clearRect(0, 0, w, h);
+          ctx.fillStyle = "rgba(12, 18, 28, 0.8)";
+          roundRect(ctx, 8, 28, w - 16, 100, 22);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.2)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.fillStyle = "#e7f0ff";
+          ctx.font = "600 42px Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text, w / 2, h / 2 + 8);
+        }, 720, 160);
+      }
+
+      function setSpriteText(sprite, text) {
+        const next = paintLabel(text);
+        sprite.material.map.dispose();
+        sprite.material.map = next;
+        sprite.material.needsUpdate = true;
+      }
+
+      function makeSprite(text) {
+        const texture = paintLabel(text);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          depthWrite: false
+        }));
+        sprite.scale.set(1.2, 0.27, 1);
+        return sprite;
+      }
+
+      const floorMap = makeCanvasTexture((ctx, w, h) => {
+        ctx.fillStyle = "#c5ccd3";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#9aa3ad";
+        ctx.lineWidth = 5;
+        for (let j = -1; j < 5; j += 1) {
+          for (let i = -1; i < 5; i += 1) {
+            const x = i * 72 + (j % 2) * 36;
+            const y = j * 72;
+            ctx.beginPath();
+            ctx.moveTo(x, y + 18);
+            ctx.lineTo(x + 26, y);
+            ctx.lineTo(x + 52, y + 18);
+            ctx.lineTo(x + 26, y + 36);
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+      }, 256, 256, 2.4, 3);
+
+      const tileMap = makeCanvasTexture((ctx, w, h) => {
+        ctx.fillStyle = "#646b74";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#767e88";
+        ctx.fillRect(4, 4, w - 8, h - 8);
+      }, 128, 128, 10, 10);
+
+      const mat = {
+        steel: new THREE.MeshStandardMaterial({ color: 0xd5dbe2, metalness: 0.48, roughness: 0.32 }),
+        steelInner: new THREE.MeshStandardMaterial({ color: 0xe7edf2, metalness: 0.42, roughness: 0.24 }),
+        steelDark: new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.5, roughness: 0.38 }),
+        floor: new THREE.MeshStandardMaterial({ map: floorMap, metalness: 0.55, roughness: 0.4 }),
+        foam: new THREE.MeshStandardMaterial({ color: 0xf3efe4, roughness: 0.96, metalness: 0 }),
+        gasket: new THREE.MeshStandardMaterial({ color: 0x1a1d21, roughness: 0.75 }),
+        copper: new THREE.MeshStandardMaterial({ color: 0xd08a45, metalness: 0.42, roughness: 0.34 }),
+        copperThin: new THREE.MeshStandardMaterial({ color: 0xe0a15a, metalness: 0.4, roughness: 0.32 }),
+        rubber: new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.86 }),
+        glass: new THREE.MeshStandardMaterial({
+          color: 0xb9dcff,
+          transparent: true,
+          opacity: 0.38,
+          roughness: 0.06,
+          metalness: 0.05
+        }),
+        fin: new THREE.MeshStandardMaterial({
+          color: 0xd5dee8,
+          metalness: 0.35,
+          roughness: 0.4,
+          side: THREE.DoubleSide
+        }),
+        fan: new THREE.MeshStandardMaterial({ color: 0x3e4752, metalness: 0.4, roughness: 0.45 }),
+        tile: new THREE.MeshStandardMaterial({ map: tileMap, roughness: 0.9, metalness: 0.04 }),
+        concrete: new THREE.MeshStandardMaterial({ color: 0xa7adb4, roughness: 0.94, metalness: 0.02 }),
+        hazard: new THREE.MeshStandardMaterial({ color: 0xf2c200, roughness: 0.7, metalness: 0.05 }),
+        recess: new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.86 }),
+        cord: new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.82 }),
+        water: new THREE.MeshStandardMaterial({
+          color: 0x2f6bff,
+          transparent: true,
+          opacity: 0.22,
+          roughness: 0.08,
+          metalness: 0.05,
+          depthWrite: false
+        }),
+        vessel: new THREE.MeshStandardMaterial({ color: 0xc47a3a, roughness: 0.55, metalness: 0.08 })
+      };
+
+      function box(parent, w, h, d, x, y, z, material, cast) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = cast !== false;
+        mesh.receiveShadow = true;
+        parent.add(mesh);
+        return mesh;
+      }
+
+      function addPanel(parent, w, h, d, x, y, z, axis, matLow, matHigh) {
+        const skin = 0.012;
+        let cw = w;
+        let ch = h;
+        let cd = d;
+        if (axis === "x") cw = Math.max(0.001, w - skin * 2);
+        if (axis === "y") ch = Math.max(0.001, h - skin * 2);
+        if (axis === "z") cd = Math.max(0.001, d - skin * 2);
+        const core = new THREE.Mesh(new THREE.BoxGeometry(cw, ch, cd), mat.foam);
+        core.position.set(x, y, z);
+        core.castShadow = true;
+        core.receiveShadow = true;
+        parent.add(core);
+
+        const shell = (material, ox, oy, oz, sw, sh, sd) => {
+          const mesh = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, sd), material);
+          mesh.position.set(x + ox, y + oy, z + oz);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          parent.add(mesh);
+        };
+
+        if (axis === "x") {
+          shell(matLow, -(w - skin) / 2, 0, 0, skin, h, d);
+          shell(matHigh, (w - skin) / 2, 0, 0, skin, h, d);
+        } else if (axis === "y") {
+          shell(matLow, 0, -(h - skin) / 2, 0, w, skin, d);
+          shell(matHigh, 0, (h - skin) / 2, 0, w, skin, d);
+        } else {
+          shell(matLow, 0, 0, -(d - skin) / 2, w, h, skin);
+          shell(matHigh, 0, 0, (d - skin) / 2, w, h, skin);
+        }
+      }
+
+      function addRectFrame(parent, cx, cy, z, w, h, bar, depth, material) {
+        const top = new THREE.Mesh(new THREE.BoxGeometry(w, bar, depth), material);
+        top.position.set(cx, cy + h / 2 - bar / 2, z);
+        const bottom = top.clone();
+        bottom.position.y = cy - h / 2 + bar / 2;
+        const left = new THREE.Mesh(new THREE.BoxGeometry(bar, h - bar * 2, depth), material);
+        left.position.set(cx - w / 2 + bar / 2, cy, z);
+        const right = left.clone();
+        right.position.x = cx + w / 2 - bar / 2;
+        parent.add(top, bottom, left, right);
+      }
+
+      function addFan(parent, x, y, z, face) {
+        const mount = new THREE.Group();
+        mount.position.set(x, y, z);
+        if (face === "down") mount.rotation.x = Math.PI / 2;
+        if (face === "posX") mount.rotation.y = Math.PI / 2;
+
+        const spinner = new THREE.Group();
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.03, 12), mat.fan);
+        hub.rotation.x = Math.PI / 2;
+        spinner.add(hub);
+        for (let i = 0; i < 5; i += 1) {
+          const pivot = new THREE.Group();
+          pivot.rotation.z = (i / 5) * Math.PI * 2;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.026, 0.008), mat.fan);
+          blade.position.x = 0.07;
+          pivot.add(blade);
+          spinner.add(pivot);
+        }
+        mount.add(spinner);
+        mount.add(new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.008, 8, 24), mat.steelDark));
+        parent.add(mount);
+        sim.fans.push(spinner);
+      }
+
+      function addPipe(parent, points, radius, material) {
+        const dir = new THREE.Vector3();
+        for (let i = 0; i < points.length; i += 1) {
+          const cap = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.12, 12, 8), material);
+          cap.position.copy(points[i]);
+          parent.add(cap);
+        }
+        for (let i = 0; i < points.length - 1; i += 1) {
+          const a = points[i];
+          const b = points[i + 1];
+          dir.subVectors(b, a);
+          const len = dir.length();
+          if (len < 0.001) continue;
+          const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 14), material);
+          mesh.position.copy(a).add(b).multiplyScalar(0.5);
+          dir.multiplyScalar(1 / len);
+          mesh.quaternion.setFromUnitVectors(_yAxis, dir);
+          mesh.castShadow = true;
+          parent.add(mesh);
+        }
+      }
+
+      function buildCell() {
+        const group = new THREE.Group();
+        const spanZ = DIM.innerD + DIM.wall * 2;
+        const spanX = DIM.innerW + DIM.wall * 2;
+        const wallH = CEIL_Y;
+
+        addPanel(group, DIM.innerW, DIM.floorH, DIM.innerD, 0, DIM.floorH / 2, 0, "y", mat.steel, mat.floor);
+        addPanel(
+          group,
+          DIM.innerW,
+          DIM.floorH,
+          DIM.wall,
+          0,
+          DIM.floorH / 2,
+          DIM.innerD / 2 + DIM.wall / 2,
+          "y",
+          mat.steel,
+          mat.floor
+        );
+        addPanel(group, DIM.wall, wallH, spanZ, -OUTER_X + DIM.wall / 2, wallH / 2, 0, "x", mat.steel, mat.steelInner);
+        addPanel(group, DIM.wall, wallH, spanZ, OUTER_X - DIM.wall / 2, wallH / 2, 0, "x", mat.steelInner, mat.steel);
+        addPanel(
+          group,
+          DIM.innerW,
+          DIM.innerH,
+          DIM.wall,
+          0,
+          DIM.floorH + DIM.innerH / 2,
+          -DIM.innerD / 2 - DIM.wall / 2,
+          "z",
+          mat.steel,
+          mat.steelInner
+        );
+        addPanel(group, spanX, DIM.wall, spanZ, 0, CEIL_Y + DIM.wall / 2, 0, "y", mat.steelInner, mat.steel);
+        addPanel(
+          group,
+          DIM.innerW,
+          DIM.headerH,
+          DIM.wall,
+          0,
+          CEIL_Y - DIM.headerH / 2,
+          DIM.innerD / 2 + DIM.wall / 2,
+          "z",
+          mat.steelInner,
+          mat.steel
+        );
+
+        const plate = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.52, 0.13),
+          new THREE.MeshBasicMaterial({ map: makeTextTexture("ABATIDOR ROLL-IN", "CÉLULA AISLADA") })
+        );
+        plate.position.set(0, CEIL_Y - DIM.headerH / 2, SILL_Z + 0.012);
+        group.add(plate);
+
+        const drain = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.006, 8, 18), mat.steelDark);
+        drain.rotation.x = Math.PI / 2;
+        drain.position.set(0.22, DIM.floorH + 0.006, -0.32);
+        group.add(drain);
+        return group;
+      }
+
+      function buildDoor() {
+        const pivot = new THREE.Group();
+        pivot.position.set(HINGE_X, DIM.floorH, SILL_Z);
+        pivot.rotation.y = THREE.MathUtils.degToRad(-152);
+
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W, DOOR_H, DOOR_T), mat.steel);
+        slab.position.set(DOOR_W / 2, DOOR_H / 2 + 0.01, DOOR_T / 2);
+        slab.castShadow = true;
+        slab.receiveShadow = true;
+        pivot.add(slab);
+
+        addRectFrame(pivot, DOOR_W / 2, DOOR_H / 2 + 0.01, -0.008, DOOR_W - 0.03, DOOR_H - 0.03, 0.028, 0.012, mat.gasket);
+
+        const windowY = DOOR_H * 0.62;
+        const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.012), mat.steelDark);
+        bezel.position.set(DOOR_W * 0.62, windowY, -0.004);
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.42, 0.014), mat.glass);
+        glass.position.set(DOOR_W * 0.62, windowY, -0.012);
+        pivot.add(bezel, glass);
+
+        const pull = new THREE.Mesh(new THREE.CapsuleGeometry(0.015, 0.28, 4, 8), mat.steel);
+        pull.position.set(DOOR_W * 0.84, DOOR_H * 0.48, -0.045);
+        pull.castShadow = true;
+        pivot.add(pull);
+
+        for (let i = 0; i < 3; i += 1) {
+          const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.14, 10), mat.steelDark);
+          hinge.position.set(0, DOOR_H * (0.18 + i * 0.32), DOOR_T * 0.45);
+          pivot.add(hinge);
+        }
+        return pivot;
+      }
+
+      function buildRamp() {
+        const len = Math.hypot(RAMP_LEN, DIM.floorH);
+        const ang = Math.atan2(DIM.floorH, RAMP_LEN);
+        const thick = 0.02;
+        const midZ = SILL_Z + RAMP_LEN / 2;
+        const ramp = new THREE.Mesh(new THREE.BoxGeometry(RAMP_W, thick, len), mat.steel);
+        ramp.position.set(
+          0,
+          DIM.floorH / 2 - Math.cos(ang) * thick / 2,
+          midZ - Math.sin(ang) * thick / 2
+        );
+        ramp.rotation.x = ang;
+        ramp.castShadow = true;
+        ramp.receiveShadow = true;
+
+        for (let i = 0; i < 6; i += 1) {
+          const rib = new THREE.Mesh(new THREE.BoxGeometry(RAMP_W * 0.86, 0.006, 0.018), mat.steelDark);
+          rib.position.set(0, thick / 2 + 0.003, -len / 2 + ((i + 1) * len) / 7);
+          ramp.add(rib);
+        }
+        const skirtGeo = new THREE.BoxGeometry(0.012, 0.05, len);
+        const left = new THREE.Mesh(skirtGeo, mat.hazard);
+        left.position.set(-RAMP_W / 2 + 0.01, 0.02, 0);
+        const right = left.clone();
+        right.position.x = RAMP_W / 2 - 0.01;
+        ramp.add(left, right);
+        return ramp;
+      }
+
+      function buildEvaporator(parent) {
+        const group = new THREE.Group();
+        group.position.set(0, CEIL_Y - 0.2, -0.04);
+        box(group, 0.78, 0.07, 0.46, 0, 0.11, 0, mat.steelInner, true);
+        for (let i = 0; i < 16; i += 1) {
+          const fin = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.15, 0.004), mat.fin);
+          fin.position.set(0, 0.01, -0.18 + i * 0.024);
+          group.add(fin);
+        }
+        for (const dy of [-0.045, 0, 0.045]) {
+          const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.64, 10), mat.copper);
+          tube.rotation.z = Math.PI / 2;
+          tube.position.set(0, dy, 0);
+          group.add(tube);
+        }
+        for (let i = 0; i < 3; i += 1) addFan(group, -0.22 + i * 0.22, -0.12, 0, "down");
+        parent.add(group);
+      }
+
+      function addWheel(parent, x, z) {
+        const rig = new THREE.Group();
+        rig.position.set(x, 0, z);
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.055, 10), mat.steelDark);
+        stem.position.y = CART.wheelR + 0.045;
+        rig.add(stem);
+
+        const axle = new THREE.Group();
+        axle.position.y = CART.wheelR;
+        axle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0));
+        const wheel = new THREE.Mesh(
+          new THREE.CylinderGeometry(CART.wheelR, CART.wheelR, CART.wheelW, 18),
+          mat.rubber
+        );
+        const hub = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.016, 0.016, CART.wheelW + 0.01, 12),
+          mat.steel
+        );
+        axle.add(wheel, hub);
+        rig.add(axle);
+
+        const plateGeo = new THREE.BoxGeometry(0.01, CART.wheelR * 1.35, CART.wheelR * 1.1);
+        const plateX = CART.wheelW / 2 + 0.012;
+        const p1 = new THREE.Mesh(plateGeo, mat.steelDark);
+        p1.position.set(plateX, CART.wheelR * 0.78, 0);
+        const p2 = new THREE.Mesh(plateGeo, mat.steelDark);
+        p2.position.set(-plateX, CART.wheelR * 0.78, 0);
+        rig.add(p1, p2);
+        parent.add(rig);
+        return wheel;
+      }
+
+      function buildCart() {
+        const pivot = new THREE.Group();
+        const cart = new THREE.Group();
+        cart.position.y = -CART.wheelR;
+        pivot.add(cart);
+
+        const postGeo = new THREE.BoxGeometry(0.028, 1.64, 0.028);
+        const posts = [
+          [-0.31, 0.09 + 0.82, -0.36],
+          [0.31, 0.09 + 0.82, -0.36],
+          [-0.31, 0.09 + 0.82, 0.36],
+          [0.31, 0.09 + 0.82, 0.36]
+        ];
+        for (const [x, y, z] of posts) {
+          const post = new THREE.Mesh(postGeo, mat.steel);
+          post.position.set(x, y, z);
+          post.castShadow = true;
+          cart.add(post);
+        }
+
+        box(cart, 0.62, 0.03, 0.72, 0, 0.12, 0, mat.steelDark, true);
+        box(cart, 0.62, 0.025, 0.03, 0, 1.72, -0.36, mat.steel, true);
+        box(cart, 0.62, 0.025, 0.03, 0, 1.72, 0.36, mat.steel, true);
+        box(cart, 0.02, 1.5, 0.03, -0.3, 0.9, 0, mat.steel, true);
+        box(cart, 0.02, 1.5, 0.03, 0.3, 0.9, 0, mat.steel, true);
+
+        for (let i = 0; i < CART.levels; i += 1) {
+          const y = CART.firstY + i * CART.pitch;
+          const rail = box(cart, 0.545, 0.01, 0.34, 0, y, 0, mat.steelDark, false);
+          const trayMat = new THREE.MeshStandardMaterial({
+            color: 0xff3b30,
+            emissive: 0xff3b30,
+            emissiveIntensity: 0.16,
+            roughness: 0.48,
+            metalness: 0.08
+          });
+          sim.trayMats.push(trayMat);
+          const tray = box(cart, 0.5, 0.026, 0.3, 0, y + 0.016, 0, trayMat, true);
+          sim.levels.push({ rail, tray, y });
+        }
+        sim.trayLabel = makeSprite("20 × GN 65 mm");
+        sim.trayLabel.position.set(0, 1.88, 0);
+        cart.add(sim.trayLabel);
+
+        const handleZ = 0.42;
+        const upright = new THREE.CylinderGeometry(0.013, 0.013, 0.32, 10);
+        const leftHandle = new THREE.Mesh(upright, mat.steel);
+        leftHandle.position.set(-0.24, 1.02, handleZ);
+        const rightHandle = leftHandle.clone();
+        rightHandle.position.x = 0.24;
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.48, 12), mat.steel);
+        grip.rotation.z = Math.PI / 2;
+        grip.position.set(0, 1.16, handleZ);
+        cart.add(leftHandle, rightHandle, grip);
+
+        const tag = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.3, 0.075),
+          new THREE.MeshBasicMaterial({ map: makeTextTexture("20 × GN 1/1", "RATIONAL 201") })
+        );
+        tag.position.set(0.34, 0.95, 0);
+        tag.rotation.y = Math.PI / 2;
+        cart.add(tag);
+
+        sim.wheels.push(addWheel(cart, -CART.track / 2, -CART.wheelbase / 2));
+        sim.wheels.push(addWheel(cart, CART.track / 2, -CART.wheelbase / 2));
+        sim.wheels.push(addWheel(cart, -CART.track / 2, CART.wheelbase / 2));
+        sim.wheels.push(addWheel(cart, CART.track / 2, CART.wheelbase / 2));
+        return pivot;
+      }
+
+      function buildCondenser() {
+        const group = new THREE.Group();
+        group.position.set(COND_X, 0, COND_Z);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(COND_W, COND_H, COND_D), mat.steel);
+        body.position.y = PLINTH + COND_H / 2;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        group.add(body);
+        for (const sx of [-1, 1]) {
+          for (const sz of [-1, 1]) {
+            const foot = new THREE.Mesh(new THREE.BoxGeometry(0.08, PLINTH, 0.08), mat.steelDark);
+            foot.position.set(sx * (COND_W / 2 - 0.1), PLINTH / 2, sz * (COND_D / 2 - 0.1));
+            group.add(foot);
+          }
+        }
+        const recess = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.48, 0.48), mat.fin);
+        recess.position.set(COND_W / 2 - 0.01, PLINTH + COND_H * 0.58, 0);
+        group.add(recess);
+        addFan(group, COND_W / 2 + 0.02, PLINTH + COND_H * 0.58, 0, "posX");
+        return group;
+      }
+
+      function buildPipes() {
+        const pipeY = CEIL_Y - 0.12;
+        const inletY = PLINTH + COND_H * 0.82;
+        const dropX = OUTER_X + 0.4;
+        const inletX = COND_X - COND_W / 2 - 0.01;
+        addPipe(scene, [
+          new THREE.Vector3(0.18, pipeY, 0.02),
+          new THREE.Vector3(DIM.innerW / 2 - 0.02, pipeY, 0.02)
+        ], 0.022, mat.copper);
+        addPipe(scene, [
+          new THREE.Vector3(OUTER_X + 0.02, pipeY, 0.02),
+          new THREE.Vector3(dropX, pipeY, 0.02),
+          new THREE.Vector3(dropX, inletY, 0.02),
+          new THREE.Vector3(inletX, inletY, 0.02)
+        ], 0.022, mat.copper);
+        addPipe(scene, [
+          new THREE.Vector3(0.18, pipeY - 0.06, 0.1),
+          new THREE.Vector3(DIM.innerW / 2 - 0.02, pipeY - 0.06, 0.1)
+        ], 0.012, mat.copperThin);
+        addPipe(scene, [
+          new THREE.Vector3(OUTER_X + 0.02, pipeY - 0.06, 0.1),
+          new THREE.Vector3(dropX, pipeY - 0.06, 0.1),
+          new THREE.Vector3(dropX, inletY - 0.08, 0.1),
+          new THREE.Vector3(inletX, inletY - 0.08, 0.1)
+        ], 0.012, mat.copperThin);
+
+        box(scene, 0.02, 0.24, 0.28, OUTER_X + 0.012, pipeY - 0.03, 0.06, mat.steel, false);
+        box(scene, 0.03, inletY, 0.03, dropX, inletY / 2, 0.06, mat.steelDark, true);
+      }
+
+      function buildParticles(instanceCount = 340) {
+        const shaftSrc = new THREE.CylinderGeometry(0.011, 0.011, 0.2, 6);
+        shaftSrc.translate(0, 0.1, 0);
+        const headSrc = new THREE.ConeGeometry(0.03, 0.08, 7);
+        headSrc.translate(0, 0.24, 0);
+        const parts = [shaftSrc.toNonIndexed(), headSrc.toNonIndexed()];
+        shaftSrc.dispose();
+        headSrc.dispose();
+        let count = 0;
+        for (const geo of parts) count += geo.getAttribute("position").count;
+        const positions = new Float32Array(count * 3);
+        const normals = new Float32Array(count * 3);
+        let offset = 0;
+        for (const geo of parts) {
+          const p = geo.getAttribute("position");
+          const n = geo.getAttribute("normal");
+          positions.set(p.array, offset);
+          normals.set(n.array, offset);
+          offset += p.array.length;
+          geo.dispose();
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+
+        const N = instanceCount;
+        const material = new THREE.MeshBasicMaterial({
+          color: 0x3b82f6,
+          transparent: true,
+          opacity: 0.92,
+          depthWrite: false
+        });
+        const mesh = new THREE.InstancedMesh(geometry, material, N);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 2;
+        mesh.castShadow = false;
+        mesh.visible = false;
+        const cold = new THREE.Color(0xbfdbfe);
+        const deep = new THREE.Color(0x1d4ed8);
+        for (let i = 0; i < N; i += 1) {
+          _color.copy(cold).lerp(deep, Math.random());
+          mesh.setColorAt(i, _color);
+        }
+        mesh.instanceColor.needsUpdate = true;
+        return { mesh, count: N, material };
+      }
+
+      const cell = buildCell();
+      scene.add(cell);
+      scene.add(buildDoor());
+      scene.add(buildRamp());
+      buildEvaporator(cell);
+      const cartPivot = buildCart();
+      scene.add(cartPivot);
+      scene.add(buildCondenser());
+      buildPipes();
+
+      const particles = buildParticles();
+      scene.add(particles.mesh);
+      const pPos = new Float32Array(particles.count * 3);
+      const pVel = new Float32Array(particles.count * 3);
+      const pScale = new Float32Array(particles.count);
+
+      const coldLabel = makeSprite("AIRE  −35 °C");
+      coldLabel.position.set(0, CEIL_Y - 0.62, 0.46);
+      coldLabel.visible = false;
+      scene.add(coldLabel);
+
+      const remoteLabel = makeSprite("CONDENSADORA  0,90 × 0,56 m");
+      remoteLabel.position.set(COND_X, PLINTH + COND_H + 0.28, COND_Z);
+      scene.add(remoteLabel);
+      const rollFoot = makeSprite("PLANTA  2,76 × 2,18 m");
+      rollFoot.position.set(1.15, 0.28, 1.2);
+      scene.add(rollFoot);
+
+      function respawn(i, scatter) {
+        const i3 = i * 3;
+        pPos[i3] = (Math.random() - 0.5) * 0.72;
+        pPos[i3 + 2] = -0.08 + Math.random() * 0.58;
+        const top = CEIL_Y - 0.48;
+        const bottom = DIM.floorH + 0.15;
+        pPos[i3 + 1] = scatter ? bottom + Math.random() * (top - bottom) : top - Math.random() * 0.15;
+        pVel[i3] = (Math.random() - 0.5) * 0.16;
+        pVel[i3 + 1] = -(0.7 + Math.random() * 0.9);
+        pVel[i3 + 2] = (Math.random() - 0.5) * 0.16;
+        pScale[i] = 0.85 + Math.random() * 0.55;
+      }
+
+      for (let i = 0; i < particles.count; i += 1) respawn(i, true);
+
+      const kitchen = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), mat.tile);
+      kitchen.rotation.x = -Math.PI / 2;
+      kitchen.position.set(OUTER_X - 7, -0.004, 0.6);
+      kitchen.receiveShadow = true;
+      const exterior = new THREE.Mesh(new THREE.PlaneGeometry(8, 14), mat.concrete);
+      exterior.rotation.x = -Math.PI / 2;
+      exterior.position.set(OUTER_X + 4, -0.004, 0.6);
+      exterior.receiveShadow = true;
+      scene.add(kitchen, exterior);
+
+      scene.add(new THREE.HemisphereLight(0xf4f7fb, 0x66707a, 0.95));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+      const key = new THREE.DirectionalLight(0xfff8f0, 2.35);
+      key.position.set(8, 12, 7);
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      key.shadow.camera.near = 2;
+      key.shadow.camera.far = 32;
+      key.shadow.camera.left = -7;
+      key.shadow.camera.right = 7;
+      key.shadow.camera.top = 7;
+      key.shadow.camera.bottom = -7;
+      key.shadow.bias = -0.00035;
+      key.target.position.set(0.3, 1, 0.4);
+      scene.add(key, key.target);
+      const fill = new THREE.DirectionalLight(0xd7e6ff, 0.8);
+      fill.position.set(-7, 5, 4);
+      scene.add(fill);
+      const rim = new THREE.DirectionalLight(0xffffff, 0.45);
+      rim.position.set(2, 6, -8);
+      scene.add(rim);
+      const ovenLight = new THREE.PointLight(0xfff4e5, 3.2, 6, 1.5);
+      ovenLight.position.set(0, DIM.floorH + 1.15, -0.05);
+      const coldLight = new THREE.PointLight(0x3b82f6, 0, 5.5, 1.45);
+      coldLight.position.set(0, CEIL_Y - 0.5, 0);
+      scene.add(ovenLight, coldLight);
+
+      const hmiCanvas = document.createElement("canvas");
+      hmiCanvas.width = 512;
+      hmiCanvas.height = 320;
+      const hmiCtx = hmiCanvas.getContext("2d");
+      const hmiTex = new THREE.CanvasTexture(hmiCanvas);
+      hmiTex.colorSpace = THREE.SRGBColorSpace;
+      const hmi = new THREE.Group();
+      hmi.position.set(OUTER_X + 0.02, DIM.floorH + 1.22, 0.22);
+      hmi.rotation.y = Math.PI / 2;
+      const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.26, 0.03), mat.steelDark);
+      const screen = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.34, 0.212),
+        new THREE.MeshBasicMaterial({ map: hmiTex })
+      );
+      screen.position.z = 0.018;
+      const pilotMat = new THREE.MeshStandardMaterial({
+        color: 0x111317,
+        emissive: 0x64748b,
+        emissiveIntensity: 1
+      });
+      const pilot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 12), pilotMat);
+      pilot.position.set(0.16, 0.1, 0.02);
+      hmi.add(bezel, screen, pilot);
+      scene.add(hmi);
+
+      function floorHeightAt(z) {
+        if (z <= SILL_Z) return DIM.floorH;
+        const end = SILL_Z + RAMP_LEN;
+        if (z >= end) return 0;
+        return DIM.floorH * (1 - (z - SILL_Z) / RAMP_LEN);
+      }
+
+      function placeCart() {
+        const half = CART.wheelbase / 2;
+        let pitch = 0;
+        let yFront = 0;
+        let yRear = 0;
+        for (let i = 0; i < 2; i += 1) {
+          const c = Math.cos(pitch);
+          yFront = floorHeightAt(sim.cartZ + c * half);
+          yRear = floorHeightAt(sim.cartZ - c * half);
+          pitch = Math.atan2(yRear - yFront, CART.wheelbase);
+        }
+        cartPivot.position.set(0, (yFront + yRear) / 2 + CART.wheelR, sim.cartZ);
+        cartPivot.rotation.x = pitch;
+      }
+
+      function ease(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      }
+
+      function tempFromProgress(p) {
+        const clamped = Math.min(1, Math.max(0, p));
+        const k = 2.7;
+        const raw = 1 - Math.exp(-k * clamped);
+        return 90 + (3 - 90) * (raw / (1 - Math.exp(-k)));
+      }
+
+      function colorForTemp(temp, out) {
+        if (temp >= TEMP_STOPS[0].t) return out.copy(TEMP_STOPS[0].color);
+        const last = TEMP_STOPS[TEMP_STOPS.length - 1];
+        if (temp <= last.t) return out.copy(last.color);
+        for (let i = 0; i < TEMP_STOPS.length - 1; i += 1) {
+          const a = TEMP_STOPS[i];
+          const b = TEMP_STOPS[i + 1];
+          if (temp <= a.t && temp >= b.t) {
+            return out.copy(a.color).lerp(b.color, (a.t - temp) / (a.t - b.t));
+          }
+        }
+        return out.copy(last.color);
+      }
+
+      function applyTemps() {
+        const slots = traySlots(20);
+        let sum = 0;
+        for (let i = 0; i < 20; i += 1) {
+          colorForTemp(sim.temps[i], _color);
+          sim.trayMats[i].color.copy(_color);
+          sim.trayMats[i].emissive.copy(_color);
+        }
+        for (const i of slots) sum += sim.temps[i];
+        sim.avg = sum / slots.length;
+      }
+
+      function setTemps(value) {
+        for (let i = 0; i < 20; i += 1) sim.temps[i] = value;
+        applyTemps();
+      }
+
+      function updateMotion(dt) {
+        const prev = sim.cartZ;
+        if (sim.moving) {
+          sim.cartT += (dt * 1000) / MOVE_MS;
+          const done = sim.cartT >= 1;
+          if (done) sim.cartT = 1;
+          sim.cartZ = sim.cartFrom + (sim.cartTo - sim.cartFrom) * ease(sim.cartT);
+          if (done) {
+            sim.moving = false;
+            sim.cartZ = sim.cartTo;
+            sim.inside = sim.goingIn;
+          }
+        }
+        const dz = sim.cartZ - prev;
+        if (dz !== 0) {
+          sim.spin += dz / CART.wheelR;
+          for (const wheel of sim.wheels) wheel.rotation.y = sim.spin;
+        }
+        placeCart();
+      }
+
+      function updateBlast(dt) {
+        if (sim.blasting) {
+          sim.elapsed += dt * 1000;
+          if (sim.elapsed >= CYCLE_MS) {
+            sim.elapsed = CYCLE_MS;
+            sim.blasting = false;
+            sim.holding = true;
+            sim.paused = false;
+            setTemps(3);
+          } else {
+            const p = sim.elapsed / CYCLE_MS;
+            for (let i = 0; i < 20; i += 1) {
+              sim.temps[i] = tempFromProgress(Math.min(1, p * (1 + (i / 19) * 0.22)));
+            }
+            applyTemps();
+          }
+        }
+      }
+
+      function cycleMid() {
+        return sim.blasting || (sim.paused && sim.elapsed > 0 && sim.elapsed < CYCLE_MS);
+      }
+
+      function airActive() {
+        return sim.inside && (cycleMid() || sim.holding);
+      }
+
+      function writeParticles(dt) {
+        const speed = sim.blasting ? 1 : 0.42;
+        const time = performance.now() * 0.001;
+        for (let i = 0; i < particles.count; i += 1) {
+          const i3 = i * 3;
+          pPos[i3] += (pVel[i3] + Math.sin(time * 1.8 + i) * 0.08) * speed * dt;
+          pPos[i3 + 1] += pVel[i3 + 1] * speed * dt;
+          pPos[i3 + 2] += (pVel[i3 + 2] + Math.cos(time * 1.4 + i) * 0.08) * speed * dt;
+          if (pPos[i3 + 1] < DIM.floorH + 0.08 || Math.abs(pPos[i3]) > 0.46 || pPos[i3 + 2] > 0.52 || pPos[i3 + 2] < -0.45) {
+            respawn(i, false);
+          }
+          _dir.set(pVel[i3], pVel[i3 + 1], pVel[i3 + 2]).normalize();
+          _dummy.position.set(pPos[i3], pPos[i3 + 1], pPos[i3 + 2]);
+          _dummy.quaternion.setFromUnitVectors(_yAxis, _dir);
+          const s = pScale[i];
+          _dummy.scale.set(s, s, s);
+          _dummy.updateMatrix();
+          particles.mesh.setMatrixAt(i, _dummy.matrix);
+        }
+        particles.mesh.instanceMatrix.needsUpdate = true;
+      }
+
+      function refrigerationPower() {
+        if (cycleMid()) {
+          const load = Math.max(0, (sim.avg - 3) / 87);
+          const wave = sim.blasting ? Math.sin(performance.now() * 0.004) * 0.12 : 0;
+          return 7.2 + 8.8 * Math.pow(load, 0.78) + wave;
+        }
+        if (sim.holding) return 2.35 + Math.sin(performance.now() * 0.003) * 0.08;
+        if (!sim.inside) return 0;
+        return 0.12;
+      }
+
+      const num = new Intl.NumberFormat("es-AR", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+      });
+      const tempValue = document.getElementById("tempValue");
+      const airValue = document.getElementById("airValue");
+      const timeValue = document.getElementById("timeValue");
+      const powerValue = document.getElementById("powerValue");
+      const barFill = document.getElementById("barFill");
+      const statusText = document.getElementById("statusText");
+      const pill = document.getElementById("pill");
+      const btnCart = document.getElementById("btnCart");
+      const btnBlast = document.getElementById("btnBlast");
+      const btnReset = document.getElementById("btnReset");
+      const chart = document.getElementById("chart");
+      const chartCtx = chart.getContext("2d");
+
+      function clock(ms) {
+        const fraction = Math.min(1, ms / CYCLE_MS);
+        const total = fraction >= 1 ? 5400 : Math.floor(fraction * 5400);
+        const m = Math.floor(total / 60);
+        const s = total % 60;
+        return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+      }
+
+      function drawCurve(canvas, ctx, progress, markerTemp, tempAt, tMin, tMax) {
+        const w = canvas.width;
+        const h = canvas.height;
+        const span = tMax - tMin;
+        ctx.clearRect(0, 0, w, h);
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 2;
+        for (let i = 1; i <= 3; i += 1) {
+          const y = 16 + ((h - 32) * i) / 4;
+          ctx.beginPath();
+          ctx.moveTo(12, y);
+          ctx.lineTo(w - 12, y);
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(125, 168, 230, 0.45)";
+        ctx.lineWidth = 3;
+        for (let i = 0; i <= 80; i += 1) {
+          const p = i / 80;
+          const temp = tempAt(p);
+          const x = 12 + p * (w - 24);
+          const y = 16 + (1 - (temp - tMin) / span) * (h - 32);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        const x = 12 + Math.min(1, Math.max(0, progress)) * (w - 24);
+        const y = 16 + (1 - (markerTemp - tMin) / span) * (h - 32);
+        ctx.strokeStyle = "rgba(248,250,252,0.28)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, 10);
+        ctx.lineTo(x, h - 10);
+        ctx.stroke();
+        ctx.fillStyle = "#0f172a";
+        ctx.beginPath();
+        ctx.arc(x, y, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f8fafc";
+        ctx.beginPath();
+        ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawChart() {
+        drawCurve(chart, chartCtx, sim.elapsed / CYCLE_MS, sim.avg, tempFromProgress, 3, 90);
+      }
+
+      function drawHMI() {
+        const ctx = hmiCtx;
+        ctx.fillStyle = "#0e141c";
+        ctx.fillRect(0, 0, 512, 320);
+        ctx.fillStyle = "#93a0b0";
+        ctx.font = "600 28px Segoe UI, sans-serif";
+        ctx.fillText("ABATIDOR", 28, 48);
+        let label = "LISTO";
+        let color = "#ff5a4a";
+        if (sim.blasting) {
+          label = "ABATIENDO  −35 °C";
+          color = "#60a5fa";
+        } else if (sim.holding) {
+          label = "MANTENIMIENTO";
+          color = "#2fce8a";
+        } else if (sim.paused) {
+          label = "PAUSA";
+          color = "#f5b942";
+        }
+        ctx.fillStyle = color;
+        ctx.font = "700 92px Segoe UI, sans-serif";
+        ctx.fillText(num.format(sim.avg) + "°", 28, 180);
+        ctx.fillStyle = "#d5dee8";
+        ctx.font = "600 28px Segoe UI, sans-serif";
+        ctx.fillText(label, 28, 260);
+        hmiTex.needsUpdate = true;
+        pilotMat.emissive.set(color);
+      }
+
+      function updateUI() {
+        const power = refrigerationPower();
+        tempValue.innerHTML = num.format(sim.avg) + "<em> °C</em>";
+        if (cycleMid()) airValue.innerHTML = "−35,0<em> °C</em>";
+        else if (sim.holding) airValue.innerHTML = "0,0<em> °C</em>";
+        else if (!sim.inside) airValue.textContent = "—";
+        else airValue.innerHTML = "18,0<em> °C</em>";
+        timeValue.innerHTML = clock(sim.elapsed) + "<em> / 90:00</em>";
+        powerValue.innerHTML = num.format(power) + "<em> kW</em>";
+        barFill.style.width = (100 * sim.elapsed / CYCLE_MS) + "%";
+
+        let state = "hot";
+        let pillText = "En caliente";
+        const trayWord = trayFormat === "deep" ? "6 cubetas de 20 L" : "las 20 bandejas";
+        let status = "Carro fuera de la celda, con " + trayWord + " a 90 °C.";
+        if (sim.moving) {
+          state = sim.goingIn ? "idle" : "idle";
+          pillText = "Traslado";
+          status = sim.goingIn
+            ? "El carro entra rodando por la rampa."
+            : "El carro sale de la celda.";
+        } else if (sim.blasting) {
+          state = "run";
+          pillText = "Abatiendo";
+          status = "Abatimiento en curso. El aire de los evaporadores está a −35 °C.";
+        } else if (sim.holding) {
+          state = "hold";
+          pillText = "Listo";
+          status = sim.inside
+            ? "Ciclo de 90 min completo. Producto a 3 °C en mantenimiento."
+            : "Producto abatido a 3 °C. El carro está fuera de la celda.";
+        } else if (sim.paused) {
+          state = "pause";
+          pillText = "En la curva";
+          status = "Punto de la curva: producto a " + num.format(sim.avg) + " °C, aire a −35 °C.";
+        } else if (sim.inside) {
+          state = sim.avg < 80 ? "pause" : "hot";
+          pillText = sim.avg < 80 ? "En celda" : "En caliente";
+          status = "Carro dentro de la celda. Listo para iniciar el abatimiento.";
+        }
+        pill.className = "pill " + state;
+        pill.textContent = pillText;
+        statusText.textContent = status;
+
+        const cartLabel = btnCart.querySelector("strong");
+        const cartHint = btnCart.querySelector("small");
+        if (sim.moving) {
+          cartLabel.textContent = "Moviendo…";
+          cartHint.textContent = sim.goingIn ? "Entrando a la celda" : "Saliendo de la celda";
+        } else if (sim.inside) {
+          cartLabel.textContent = "Sacar carro";
+          cartHint.textContent = "Sale rodando por la rampa";
+        } else {
+          cartLabel.textContent = "Meter carro";
+          cartHint.textContent = "Entra rodando por la rampa";
+        }
+
+        const blastLabel = btnBlast.querySelector("strong");
+        const blastHint = btnBlast.querySelector("small");
+        if (!sim.inside) {
+          blastLabel.textContent = "Iniciar abatimiento";
+          blastHint.textContent = "Primero meté el carro";
+        } else if (sim.blasting) {
+          blastLabel.textContent = "Detener abatimiento";
+          blastHint.textContent = "Pausa el ciclo de 90 min";
+        } else if (sim.holding) {
+          blastLabel.textContent = "Reiniciar ciclo";
+          blastHint.textContent = "Vuelve a 90 °C y abate";
+        } else if (sim.paused) {
+          blastLabel.textContent = "Reanudar abatimiento";
+          blastHint.textContent = "Continúa hasta los 3 °C";
+        } else {
+          blastLabel.textContent = "Iniciar abatimiento";
+          blastHint.textContent = "Aire a −35 °C · 90 min";
+        }
+
+        btnCart.disabled = sim.moving;
+        btnBlast.disabled = !sim.inside || sim.moving;
+        btnReset.hidden = sim.blasting || sim.moving || (sim.elapsed <= 0 && !sim.holding);
+        drawChart();
+        drawHMI();
+      }
+
+      function applyCamera() {
+        const sp = Math.sin(view.phi);
+        camera.position.set(
+          view.target.x + view.radius * sp * Math.sin(view.theta),
+          view.target.y + view.radius * Math.cos(view.phi),
+          view.target.z + view.radius * sp * Math.cos(view.theta)
+        );
+        camera.lookAt(view.target);
+        const w = Math.max(1, viewEl.clientWidth);
+        const h = Math.max(1, viewEl.clientHeight);
+        const aspect = w / h;
+        const halfH = view.frustum / Math.min(1, aspect);
+        const halfW = halfH * aspect;
+        camera.left = -halfW;
+        camera.right = halfW;
+        camera.top = halfH;
+        camera.bottom = -halfH;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h, false);
+      }
+
+      function resetView() {
+        const src = viewPresets[mode];
+        view.theta = src.theta;
+        view.phi = src.phi;
+        view.frustum = src.frustum;
+        view.radius = src.radius;
+        view.target.copy(src.target);
+        applyCamera();
+      }
+
+      const pointers = new Map();
+      const canvas = renderer.domElement;
+      canvas.addEventListener("pointerdown", (event) => {
+        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, button: event.button });
+        canvas.setPointerCapture(event.pointerId);
+        viewEl.classList.add("dragging");
+      });
+      canvas.addEventListener("pointerup", (event) => {
+        pointers.delete(event.pointerId);
+        if (pointers.size === 0) viewEl.classList.remove("dragging");
+      });
+      canvas.addEventListener("pointercancel", (event) => {
+        pointers.delete(event.pointerId);
+        if (pointers.size === 0) viewEl.classList.remove("dragging");
+      });
+      canvas.addEventListener("pointermove", (event) => {
+        const prev = pointers.get(event.pointerId);
+        if (!prev) return;
+        if (pointers.size === 2) {
+          const ids = [...pointers.keys()];
+          const a = pointers.get(ids[0]);
+          const b = pointers.get(ids[1]);
+          const before = Math.hypot(a.x - b.x, a.y - b.y);
+          prev.x = event.clientX;
+          prev.y = event.clientY;
+          const after = Math.hypot(
+            pointers.get(ids[0]).x - pointers.get(ids[1]).x,
+            pointers.get(ids[0]).y - pointers.get(ids[1]).y
+          );
+          if (before > 0 && after > 0) {
+            view.frustum = Math.min(5.6, Math.max(1.15, view.frustum * (before / after)));
+            applyCamera();
+          }
+          return;
+        }
+        const dx = event.clientX - prev.x;
+        const dy = event.clientY - prev.y;
+        prev.x = event.clientX;
+        prev.y = event.clientY;
+        if (prev.button === 2 || event.shiftKey) {
+          camera.updateMatrixWorld();
+          _right.setFromMatrixColumn(camera.matrixWorld, 0);
+          _up.setFromMatrixColumn(camera.matrixWorld, 1);
+          const scale = view.frustum * 0.00215;
+          view.target.addScaledVector(_right, -dx * scale);
+          view.target.addScaledVector(_up, dy * scale);
+        } else {
+          view.theta -= dx * 0.0055;
+          view.phi = Math.max(0.22, Math.min(1.28, view.phi + dy * 0.005));
+        }
+        applyCamera();
+      });
+      canvas.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        view.frustum = Math.min(5.6, Math.max(1.15, view.frustum * Math.exp(event.deltaY * 0.0011)));
+        applyCamera();
+      }, { passive: false });
+      canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+      window.addEventListener("resize", applyCamera);
+      if (window.ResizeObserver) new ResizeObserver(() => applyCamera()).observe(viewEl);
+
+      btnCart.addEventListener("click", () => {
+        if (sim.moving) return;
+        sim.goingIn = !sim.inside;
+        sim.cartFrom = sim.cartZ;
+        sim.cartTo = sim.goingIn ? IN_Z : OUT_Z;
+        sim.cartT = 0;
+        sim.moving = true;
+        if (!sim.goingIn && sim.blasting) {
+          sim.blasting = false;
+          sim.paused = sim.elapsed > 0 && sim.elapsed < CYCLE_MS;
+        }
+      });
+
+      btnBlast.addEventListener("click", () => {
+        if (!sim.inside || sim.moving) return;
+        if (sim.blasting) {
+          sim.blasting = false;
+          sim.paused = sim.elapsed > 0 && sim.elapsed < CYCLE_MS;
+          return;
+        }
+        if (sim.elapsed >= CYCLE_MS || sim.holding) {
+          sim.elapsed = 0;
+          sim.holding = false;
+          sim.paused = false;
+          setTemps(90);
+        }
+        sim.blasting = true;
+        sim.paused = false;
+      });
+
+      btnReset.addEventListener("click", () => {
+        sim.blasting = false;
+        sim.holding = false;
+        sim.paused = false;
+        sim.elapsed = 0;
+        setTemps(90);
+      });
+
+      document.getElementById("btnIso").addEventListener("click", resetView);
+
+      const PITCH = 0.072;
+      const FORMATS = {
+        low: { h: 0.026, kg: 3.2, step: 1, cartLabel: "20 × GN 65 mm", cabLabel: "15 × GN 65 mm" },
+        deep: { h: 0.15, kg: 20, step: 3, cartLabel: "6 × GN 20 L", cabLabel: "5 × GN 20 L" }
+      };
+      let trayFormat = "low";
+      const WARN_TEXT = "Advertencia: 5 bandejas del Rational 201 quedan afuera. El rendimiento se reduce un 30% por sobrecarga.";
+      const DEEP_WEIGHT_TEXT = "Advertencia: entran 5 bandejas GN 1/1 de 20 L por altura, pero llenas pesan 100 kg y el tope es 50 kg. El rendimiento se reduce un 30% por sobrecarga.";
+      const DEEP_CART_TEXT = "Advertencia: de las 6 bandejas de 20 L del Rational 201, 1 queda afuera por altura. Las 5 que entran pesan 100 kg y superan los 50 kg. El rendimiento se reduce un 30% por sobrecarga.";
+      const REJECT_TEXT = "Error de Incompatibilidad: No es posible introducir alimentos sólidos o bandejas abiertas en un enfriador por agua.";
+
+      function traySpec() {
+        return FORMATS[trayFormat];
+      }
+
+      function traySlots(levels) {
+        const spec = traySpec();
+        const slots = [];
+        for (let i = 0; i < levels; i += spec.step) {
+          if (i * PITCH + spec.h <= levels * PITCH + 0.002) slots.push(i);
+        }
+        return slots;
+      }
+
+      function cabinetSlots() {
+        return traySlots(15);
+      }
+
+      function capacityText() {
+        if (cab.warnKind === "cart-deep") return DEEP_CART_TEXT;
+        if (cab.warnKind === "weight") {
+          if (cab.count >= cabinetSlots().length) return DEEP_WEIGHT_TEXT;
+          const kg = Math.round(cab.count * traySpec().kg);
+          return "Advertencia: hay " + num.format(kg) + " kg en cubetas de 20 L y el tope es 50 kg. El rendimiento se reduce un 30% por sobrecarga.";
+        }
+        return WARN_TEXT;
+      }
+
+      function applyTrayGeometry() {
+        const spec = traySpec();
+        const rollSlots = new Set(traySlots(20));
+        const blockedRoll = new Set();
+        if (spec.step > 1) {
+          rollSlots.forEach((slot) => {
+            for (let k = 1; k < spec.step; k += 1) blockedRoll.add(slot + k);
+          });
+        }
+        sim.levels.forEach((level, index) => {
+          level.rail.visible = !blockedRoll.has(index);
+          level.tray.visible = rollSlots.has(index);
+          level.tray.scale.y = spec.h / 0.026;
+          level.tray.position.y = level.y + 0.006 + spec.h / 2;
+        });
+        setSpriteText(sim.trayLabel, spec.cartLabel);
+
+        const cabSlots = new Set(cabinetSlots());
+        const blockedCab = new Set();
+        if (spec.step > 1) {
+          cabSlots.forEach((slot) => {
+            for (let k = 1; k < spec.step; k += 1) blockedCab.add(slot + k);
+          });
+        }
+        cab.rails.forEach((pair, index) => {
+          const show = !blockedCab.has(index);
+          pair[0].visible = show;
+          pair[1].visible = show;
+        });
+        cab.trays.forEach((tray) => {
+          tray.food.scale.y = spec.h / 0.026;
+          tray.food.position.y = 0.008 + spec.h / 2;
+          tray.lip.position.y = spec.step === 1 ? 0.004 : spec.h - 0.002;
+        });
+        cab.outside.forEach((mesh, index) => {
+          mesh.scale.y = spec.h / 0.03;
+          const gap = spec.step === 1 ? spec.h + 0.015 : 0;
+          mesh.position.y = 0.02 + spec.h / 2 + index * gap;
+        });
+        setSpriteText(cab.capLabel, spec.cabLabel);
+      }
+
+      function syncFormatUi() {
+        const deep = trayFormat === "deep";
+        document.querySelectorAll("[data-format]").forEach((btn) => {
+          btn.classList.toggle("on", btn.dataset.format === trayFormat);
+          btn.disabled = cab.phase !== "idle";
+        });
+        const note = deep
+          ? "Cubeta GN 1/1 de 150 mm y 20 L. Ocupa 3 guías: en el carro entran 6 y en el armario, 5."
+          : "Bandeja GN 1/1 de 65 mm. El carro lleva 20 y el armario, 15.";
+        document.querySelectorAll("[data-format-note]").forEach((el) => {
+          el.textContent = note;
+        });
+        document.getElementById("rollScaleLabel").textContent = deep ? "6 cubetas GN 1/1 · 20 L" : "Bandejas GN 1/1 · 65 mm";
+        document.getElementById("cabScaleLabel").textContent = deep ? "5 cubetas GN 1/1 · 20 L" : "Bandejas GN 1/1 · 65 mm";
+        document.getElementById("btnCabOver").textContent = deep
+          ? "Intentar cargar el carro 201 (6 cubetas de 20 L)"
+          : "Intentar cargar el carro 201 (20 bandejas)";
+        document.getElementById("cabFoot").textContent = deep
+          ? "Ocupa 0,78 × 0,80 × 1,90 m. Cada cubeta de 20 L pesa unos 20 kg llena. Entran 5 por altura (100 kg) y pasan el tope de 50 kg."
+          : "Ocupa 0,78 × 0,80 × 1,90 m. Cada bandeja de 65 mm pesa 3,2 kg. Quince son 48 kg. Un carro Rational 201 trae 20 (64 kg): cinco no entran y el equipo queda sobrecargado.";
+      }
+
+      function clearCabinet() {
+        cab.phase = "idle";
+        cab.count = 0;
+        cab.active = -1;
+        cab.slideT = 0;
+        cab.overloaded = false;
+        cab.warnKind = null;
+        cab.bannerClosed = false;
+        cab.chilling = false;
+        cab.paused = false;
+        cab.holding = false;
+        cab.elapsed = 0;
+        cab.trays.forEach((tray) => {
+          tray.pivot.visible = false;
+          tray.pivot.position.z = cab.outsideZ;
+        });
+        cab.temps.fill(90);
+        cab.outside.forEach((mesh) => { mesh.visible = false; });
+        cab.outLabel.visible = false;
+      }
+
+      function setTrayFormat(next) {
+        if (next === trayFormat || cab.phase !== "idle") return;
+        trayFormat = next;
+        clearCabinet();
+        applyTrayGeometry();
+        applyTemps();
+        syncFormatUi();
+        syncBanner();
+      }
+
+      function showLeftovers() {
+        const deep = trayFormat === "deep";
+        cab.outside.forEach((mesh, index) => {
+          mesh.visible = deep ? index === 0 : true;
+        });
+        setSpriteText(cab.outLabel, deep ? "1 × 20 L AFUERA" : "5 BANDEJAS AFUERA");
+        cab.outLabel.visible = true;
+      }
+
+      function noteWeight() {
+        if (cab.count === 0) {
+          cab.overloaded = false;
+          cab.warnKind = null;
+          cab.outside.forEach((mesh) => { mesh.visible = false; });
+          cab.outLabel.visible = false;
+          syncBanner();
+          return;
+        }
+        const heavy = trayFormat === "deep" && cab.count * traySpec().kg > 50;
+        if (heavy) {
+          cab.overloaded = true;
+          if (cab.warnKind !== "cart-deep" && cab.warnKind !== "cart") cab.warnKind = "weight";
+        } else if (cab.warnKind === "weight") {
+          cab.overloaded = false;
+          cab.warnKind = null;
+        }
+        syncBanner();
+      }
+      const alertBanner = document.getElementById("alertBanner");
+      const alertTitle = document.getElementById("alertTitle");
+      const alertBody = document.getElementById("alertBody");
+
+      function makeFan(parent, x, y, z, face) {
+        const mount = new THREE.Group();
+        mount.position.set(x, y, z);
+        if (face === "down") mount.rotation.x = Math.PI / 2;
+        if (face === "posX") mount.rotation.y = Math.PI / 2;
+        const spinner = new THREE.Group();
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.028, 12), mat.fan);
+        hub.rotation.x = Math.PI / 2;
+        spinner.add(hub);
+        for (let i = 0; i < 5; i += 1) {
+          const pivot = new THREE.Group();
+          pivot.rotation.z = (i / 5) * Math.PI * 2;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.022, 0.007), mat.fan);
+          blade.position.x = 0.058;
+          pivot.add(blade);
+          spinner.add(pivot);
+        }
+        mount.add(spinner);
+        mount.add(new THREE.Mesh(new THREE.TorusGeometry(0.086, 0.007, 8, 20), mat.steelDark));
+        parent.add(mount);
+        return spinner;
+      }
+
+      function studio(target, look) {
+        target.add(new THREE.HemisphereLight(0xf4f7fb, 0x66707a, 0.95));
+        target.add(new THREE.AmbientLight(0xffffff, 0.22));
+        const key = new THREE.DirectionalLight(0xfff8f0, 2.15);
+        key.position.set(5, 9, 6);
+        key.castShadow = true;
+        key.shadow.mapSize.set(1024, 1024);
+        key.shadow.camera.near = 1;
+        key.shadow.camera.far = 24;
+        key.shadow.camera.left = -4;
+        key.shadow.camera.right = 4;
+        key.shadow.camera.top = 4;
+        key.shadow.camera.bottom = -4;
+        key.shadow.bias = -0.0004;
+        key.target.position.copy(look);
+        target.add(key, key.target);
+        const fill = new THREE.DirectionalLight(0xd7e6ff, 0.72);
+        fill.position.set(-4, 4, 3);
+        target.add(fill);
+      }
+
+      function trayMaterial() {
+        return new THREE.MeshStandardMaterial({
+          color: 0xff3b30,
+          emissive: 0xff3b30,
+          emissiveIntensity: 0.16,
+          roughness: 0.48,
+          metalness: 0.08
+        });
+      }
+
+      const cab = {
+        count: 0,
+        phase: "idle",
+        active: -1,
+        slideT: 0,
+        overloaded: false,
+        bannerClosed: false,
+        chilling: false,
+        paused: false,
+        holding: false,
+        elapsed: 0,
+        temps: Array.from({ length: 15 }, () => 90),
+        trays: [],
+        outside: [],
+        rails: [],
+        warnKind: null,
+        fans: [],
+        insideZ: -0.02,
+        outsideZ: 0.86
+      };
+
+      function buildCabinet() {
+        const sceneCab = new THREE.Scene();
+        const root = new THREE.Group();
+        sceneCab.add(root);
+        const W = 0.78;
+        const D = 0.8;
+        const H = 1.9;
+        const BASE = 0.42;
+        const WALL = 0.04;
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), mat.tile);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.004;
+        floor.receiveShadow = true;
+        sceneCab.add(floor);
+        studio(sceneCab, new THREE.Vector3(0.1, 0.9, 0.2));
+
+        box(root, W, 0.03, D, 0, 0.015, 0, mat.steel, true);
+        box(root, 0.03, BASE, D, -W / 2 + 0.015, BASE / 2, 0, mat.steel, true);
+        box(root, W - 0.06, BASE - 0.04, 0.03, 0, BASE / 2, -D / 2 + 0.015, mat.steel, true);
+        box(root, W, 0.03, D, 0, BASE - 0.015, 0, mat.steel, true);
+        for (let i = 0; i < 6; i += 1) {
+          box(root, W - 0.14, 0.012, 0.012, 0, 0.07 + i * 0.05, D / 2 - 0.02, mat.steelDark, false);
+        }
+        const frameY = [0.05, BASE - 0.05];
+        box(root, 0.03, BASE, 0.03, W / 2 - 0.02, BASE / 2, D / 2 - 0.02, mat.steel, true);
+        box(root, 0.03, BASE, 0.03, W / 2 - 0.02, BASE / 2, -D / 2 + 0.02, mat.steel, true);
+        box(root, 0.03, 0.03, D, W / 2 - 0.02, frameY[0], 0, mat.steel, true);
+        box(root, 0.03, 0.03, D, W / 2 - 0.02, frameY[1], 0, mat.steel, true);
+
+        const comp = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.16, 16), mat.recess);
+        comp.position.set(-0.08, 0.16, 0.08);
+        comp.castShadow = true;
+        root.add(comp);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat.recess);
+        dome.position.set(-0.08, 0.24, 0.08);
+        root.add(dome);
+        for (let i = 0; i < 8; i += 1) {
+          const fin = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.006), mat.fin);
+          fin.position.set(0.12, 0.18, -0.08 + i * 0.028);
+          root.add(fin);
+        }
+        cab.fans.push(makeFan(root, 0.12, 0.18, 0.2, "posZ"));
+        const motorTag = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.28, 0.07),
+          new THREE.MeshBasicMaterial({ map: makeTextTexture("COMPRESOR", "EN LA BASE") })
+        );
+        motorTag.position.set(0.02, 0.08, D / 2 + 0.01);
+        root.add(motorTag);
+
+        box(root, WALL, H - BASE, D, -W / 2 + WALL / 2, BASE + (H - BASE) / 2, 0, mat.steel, true);
+        box(root, WALL, H - BASE, D, W / 2 - WALL / 2, BASE + (H - BASE) / 2, 0, mat.steel, true);
+        box(root, W - WALL * 2, H - BASE, WALL, 0, BASE + (H - BASE) / 2, -D / 2 + WALL / 2, mat.steel, true);
+        box(root, W, WALL, D, 0, H - WALL / 2, 0, mat.steel, true);
+        box(root, W - WALL * 2, 0.12, WALL, 0, H - WALL - 0.06, D / 2 - WALL / 2, mat.steel, true);
+
+        const plate = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.46, 0.11),
+          new THREE.MeshBasicMaterial({ map: makeTextTexture("ARMARIO 15", "PLUG & PLAY") })
+        );
+        plate.position.set(0, H - 0.1, D / 2 + 0.012);
+        root.add(plate);
+
+        const pivot = new THREE.Group();
+        pivot.position.set(-W / 2 + WALL, BASE, D / 2);
+        pivot.rotation.y = THREE.MathUtils.degToRad(-150);
+        const doorH = H - BASE - WALL - 0.16;
+        const doorW = W - WALL * 2 + 0.02;
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.045), mat.steel);
+        slab.position.set(doorW / 2, doorH / 2 + 0.02, 0.03);
+        slab.castShadow = true;
+        pivot.add(slab);
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.36, 0.012), mat.glass);
+        glass.position.set(doorW * 0.62, doorH * 0.62, -0.01);
+        pivot.add(glass);
+        const pull = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.22, 4, 8), mat.steel);
+        pull.position.set(doorW * 0.84, doorH * 0.45, -0.04);
+        pivot.add(pull);
+        root.add(pivot);
+
+        const evY = H - 0.2;
+        for (let i = 0; i < 10; i += 1) {
+          const fin = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.08, 0.004), mat.fin);
+          fin.position.set(0, evY, -0.12 + i * 0.026);
+          root.add(fin);
+        }
+        cab.fans.push(makeFan(root, 0, evY - 0.1, 0.02, "down"));
+        cab.air = buildParticles(220);
+        sceneCab.add(cab.air.mesh);
+        cab.airPos = new Float32Array(cab.air.count * 3);
+        cab.airVel = new Float32Array(cab.air.count * 3);
+        cab.airScale = new Float32Array(cab.air.count);
+        cab.respawnAir = function respawnAir(i, scatter) {
+          const i3 = i * 3;
+          cab.airPos[i3] = (Math.random() - 0.5) * 0.42;
+          cab.airPos[i3 + 2] = -0.02 + Math.random() * 0.36;
+          const top = evY - 0.22;
+          const bottom = BASE + 0.12;
+          cab.airPos[i3 + 1] = scatter ? bottom + Math.random() * (top - bottom) : top - Math.random() * 0.08;
+          cab.airVel[i3] = (Math.random() - 0.5) * 0.1;
+          cab.airVel[i3 + 1] = -(0.55 + Math.random() * 0.7);
+          cab.airVel[i3 + 2] = (Math.random() - 0.5) * 0.08;
+          cab.airScale[i] = 0.48 + Math.random() * 0.32;
+        };
+        for (let i = 0; i < cab.air.count; i += 1) cab.respawnAir(i, true);
+        cab.airLabel = makeSprite("AIRE  −35 °C");
+        cab.airLabel.position.set(0, evY - 0.42, D / 2 - 0.02);
+        cab.airLabel.scale.set(0.7, 0.16, 1);
+        cab.airLabel.visible = false;
+        sceneCab.add(cab.airLabel);
+        cab.coldLight = new THREE.PointLight(0x3b82f6, 0, 3.2, 1.4);
+        cab.coldLight.position.set(0, evY - 0.15, 0.05);
+        sceneCab.add(cab.coldLight);
+        sceneCab.add(new THREE.PointLight(0xfff4e5, 1.4, 3.5, 1.5).translateX(0));
+        const warm = sceneCab.children[sceneCab.children.length - 1];
+        warm.position.set(0, BASE + 0.7, 0);
+
+        for (let i = 0; i < 15; i += 1) {
+          const y = BASE + 0.1 + i * 0.072;
+          const left = box(root, 0.02, 0.008, 0.32, -0.3, y, -0.02, mat.steelDark, false);
+          const right = box(root, 0.02, 0.008, 0.32, 0.3, y, -0.02, mat.steelDark, false);
+          cab.rails.push([left, right]);
+          const pivotTray = new THREE.Group();
+          pivotTray.position.set(0, y, cab.outsideZ);
+          pivotTray.visible = false;
+          const food = trayMaterial();
+          const foodMesh = box(pivotTray, 0.5, 0.026, 0.3, 0, 0.02, 0, food, true);
+          const lip = box(pivotTray, 0.54, 0.01, 0.34, 0, 0.004, 0, mat.steelDark, false);
+          root.add(pivotTray);
+          cab.trays.push({ pivot: pivotTray, mat: food, food: foodMesh, lip });
+        }
+        cab.capLabel = makeSprite("15 × GN 65 mm");
+        cab.capLabel.position.set(W / 2 + 0.62, 1.08, 0.42);
+        cab.capLabel.scale.set(0.82, 0.19, 1);
+        sceneCab.add(cab.capLabel);
+        const cabFootLabel = makeSprite("0,78 × 0,80 × 1,90 m");
+        cabFootLabel.position.set(0.15, 0.18, D / 2 + 0.72);
+        cabFootLabel.scale.set(0.95, 0.22, 1);
+        sceneCab.add(cabFootLabel);
+
+        const outMat = trayMaterial();
+        for (let i = 0; i < 5; i += 1) {
+          const leftover = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.3), outMat);
+          leftover.position.set(W / 2 + 0.48, 0.04 + i * 0.045, 0.62);
+          leftover.visible = false;
+          leftover.castShadow = true;
+          sceneCab.add(leftover);
+          cab.outside.push(leftover);
+        }
+        cab.outLabel = makeSprite("5 BANDEJAS AFUERA");
+        cab.outLabel.position.set(W / 2 + 0.48, 0.42, 0.62);
+        cab.outLabel.visible = false;
+        sceneCab.add(cab.outLabel);
+
+        addPipe(sceneCab, [
+          new THREE.Vector3(W / 2, 0.22, -0.2),
+          new THREE.Vector3(W / 2 + 0.28, 0.22, -0.2),
+          new THREE.Vector3(W / 2 + 0.28, 0.04, -0.05)
+        ], 0.012, mat.cord);
+        const plug = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.05), mat.recess);
+        plug.position.set(W / 2 + 0.34, 0.04, 0.02);
+        sceneCab.add(plug);
+
+        const screenCanvas = document.createElement("canvas");
+        screenCanvas.width = 512;
+        screenCanvas.height = 280;
+        cab.screenCtx = screenCanvas.getContext("2d");
+        cab.screenTex = new THREE.CanvasTexture(screenCanvas);
+        cab.screenTex.colorSpace = THREE.SRGBColorSpace;
+        const hmi = new THREE.Group();
+        hmi.position.set(W / 2 + 0.02, 1.25, 0.12);
+        hmi.rotation.y = Math.PI / 2;
+        hmi.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.02), mat.steelDark));
+        const screen = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.26, 0.14),
+          new THREE.MeshBasicMaterial({ map: cab.screenTex })
+        );
+        screen.position.z = 0.012;
+        hmi.add(screen);
+        root.add(hmi);
+        return sceneCab;
+      }
+
+      const chill = {
+        running: false,
+        paused: false,
+        holding: false,
+        temp: 70,
+        rejected: false,
+        bannerClosed: false,
+        ghostT: 0,
+        offset: 0,
+        elapsed: 0
+      };
+
+      function buildChiller() {
+        const sceneChill = new THREE.Scene();
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 8), mat.concrete);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.004;
+        floor.receiveShadow = true;
+        sceneChill.add(floor);
+        studio(sceneChill, new THREE.Vector3(0.4, 0.5, 0.1));
+
+        const unit = new THREE.Group();
+        box(unit, 0.48, 0.7, 0.52, 0, 0.35, 0, mat.steel, true);
+        unit.position.set(-1.12, 0, -0.05);
+        sceneChill.add(unit);
+        chill.unitFan = makeFan(unit, 0.25, 0.4, 0, "posX");
+        const unitTag = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.36, 0.09),
+          new THREE.MeshBasicMaterial({ map: makeTextTexture("FRIOTEX", "CHILLER") })
+        );
+        unitTag.position.set(0, 0.62, 0.27);
+        unit.add(unitTag);
+
+        const tank = new THREE.Group();
+        const TW = 1.02;
+        const TH = 0.9;
+        const TD = 0.7;
+        box(tank, TW, 0.04, TD, 0, 0.02, 0, mat.steel, true);
+        box(tank, 0.04, TH, TD, -TW / 2 + 0.02, TH / 2, 0, mat.steel, true);
+        box(tank, 0.04, TH, TD, TW / 2 - 0.02, TH / 2, 0, mat.steel, true);
+        box(tank, TW, TH, 0.04, 0, TH / 2, -TD / 2 + 0.02, mat.steel, true);
+        box(tank, TW, 0.04, TD, 0, TH - 0.02, 0, mat.steel, true);
+        box(tank, TW - 0.08, 0.06, 0.04, 0, TH - 0.1, TD / 2 - 0.02, mat.steel, true);
+        box(tank, 0.06, TH - 0.16, 0.04, -TW / 2 + 0.06, TH / 2 - 0.04, TD / 2 - 0.02, mat.steel, true);
+        box(tank, 0.06, TH - 0.16, 0.04, TW / 2 - 0.06, TH / 2 - 0.04, TD / 2 - 0.02, mat.steel, true);
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(TW - 0.18, TH - 0.22, 0.02), mat.glass);
+        glass.position.set(0, TH / 2 - 0.02, TD / 2 + 0.005);
+        tank.add(glass);
+        const water = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.48, 0.42), mat.water);
+        water.position.set(0, 0.36, 0);
+        tank.add(water);
+        for (let i = 0; i < 7; i += 1) {
+          const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.72, 10), mat.copper);
+          tube.rotation.z = Math.PI / 2;
+          tube.position.set(0, 0.18 + i * 0.055, 0.08);
+          tank.add(tube);
+          const bend = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.012, 8, 12, Math.PI), mat.copper);
+          bend.rotation.y = Math.PI / 2;
+          bend.rotation.z = i % 2 ? 0 : Math.PI;
+          bend.position.set((i % 2 ? 1 : -1) * 0.36, 0.205 + i * 0.055, 0);
+          tank.add(bend);
+        }
+        sceneChill.add(tank);
+        const tankTag = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.5, 0.1),
+          new THREE.MeshBasicMaterial({ map: makeTextTexture("TANQUE CERRADO", "SERPENTÍN SUMERGIDO") })
+        );
+        tankTag.position.set(0, 0.96, 0);
+        tankTag.rotation.x = -0.4;
+        sceneChill.add(tankTag);
+
+        const pond = new THREE.Group();
+        pond.position.set(1.72, 0, 0.08);
+        box(pond, 0.98, 0.06, 0.78, 0, 0.03, 0, mat.steel, true);
+        box(pond, 0.04, 0.28, 0.78, -0.47, 0.16, 0, mat.steel, true);
+        box(pond, 0.04, 0.28, 0.78, 0.47, 0.16, 0, mat.steel, true);
+        box(pond, 0.98, 0.28, 0.04, 0, 0.16, -0.37, mat.steel, true);
+        box(pond, 0.98, 0.28, 0.04, 0, 0.16, 0.37, mat.steel, true);
+        const surface = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.06, 0.64), mat.water);
+        surface.position.set(0, 0.2, 0);
+        pond.add(surface);
+        chill.sauceMat = trayMaterial();
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.16, 20), chill.sauceMat);
+        pot.position.set(-0.16, 0.24, -0.05);
+        pot.castShadow = true;
+        pond.add(pot);
+        chill.doughMat = trayMaterial();
+        chill.doughMat.color.set(0xff7a1a);
+        chill.doughMat.emissive.set(0xff7a1a);
+        const tub = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.2), chill.doughMat);
+        tub.position.set(0.18, 0.22, 0.08);
+        tub.castShadow = true;
+        pond.add(tub);
+        sceneChill.add(pond);
+        const pondTag = makeSprite("ESTANQUE  +1 °C");
+        pondTag.position.set(1.72, 0.58, 0.08);
+        sceneChill.add(pondTag);
+        const useTag = makeSprite("SALSA / MASA");
+        useTag.position.set(1.72, 0.78, 0.08);
+        useTag.scale.set(0.9, 0.2, 1);
+        sceneChill.add(useTag);
+        const chillFoot = makeSprite("LÍNEA  3,60 × 0,85 m");
+        chillFoot.position.set(0.35, 0.16, 0.78);
+        sceneChill.add(chillFoot);
+
+        addPipe(sceneChill, [
+          new THREE.Vector3(0.52, 0.64, 0.05),
+          new THREE.Vector3(1.15, 0.64, 0.05),
+          new THREE.Vector3(1.15, 0.24, 0.05),
+          new THREE.Vector3(1.28, 0.24, 0.05)
+        ], 0.02, mat.copper);
+        addPipe(sceneChill, [
+          new THREE.Vector3(2.05, 0.16, 0.28),
+          new THREE.Vector3(1.15, 0.16, 0.28),
+          new THREE.Vector3(0.15, 0.16, 0.28),
+          new THREE.Vector3(0.15, 0.4, 0.12)
+        ], 0.016, mat.copperThin);
+
+        const loop = [
+          new THREE.Vector3(0.2, 0.42, 0.05),
+          new THREE.Vector3(0.52, 0.64, 0.05),
+          new THREE.Vector3(1.15, 0.64, 0.05),
+          new THREE.Vector3(1.15, 0.24, 0.05),
+          new THREE.Vector3(2.05, 0.24, 0.05),
+          new THREE.Vector3(2.05, 0.24, 0.28),
+          new THREE.Vector3(1.15, 0.16, 0.28),
+          new THREE.Vector3(0.15, 0.16, 0.28),
+          new THREE.Vector3(0.15, 0.4, 0.12),
+          new THREE.Vector3(0.2, 0.42, 0.05)
+        ];
+        const seg = [];
+        let total = 0;
+        for (let i = 0; i < loop.length - 1; i += 1) {
+          const len = loop[i].distanceTo(loop[i + 1]);
+          seg.push(len);
+          total += len;
+        }
+        chill.path = { loop, seg, total };
+        const arrow = new THREE.ConeGeometry(0.02, 0.09, 6);
+        arrow.translate(0, 0.045, 0);
+        chill.flowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 1, depthWrite: false });
+        chill.flow = new THREE.InstancedMesh(arrow, chill.flowMat, 32);
+        chill.flow.frustumCulled = false;
+        chill.flow.visible = false;
+        sceneChill.add(chill.flow);
+
+        const ghost = new THREE.Group();
+        ghost.position.set(0.15, 0, 1.15);
+        ghost.visible = false;
+        box(ghost, 0.46, 0.9, 0.4, 0, 0.5, 0, mat.steel, true);
+        for (let i = 0; i < 4; i += 1) {
+          box(ghost, 0.4, 0.03, 0.28, 0, 0.28 + i * 0.14, 0.02, trayMaterial(), true);
+        }
+        const noTag = makeSprite("NO ENTRA");
+        noTag.position.set(0, 1.15, 0);
+        ghost.add(noTag);
+        sceneChill.add(ghost);
+        chill.ghost = ghost;
+        return sceneChill;
+      }
+
+      sceneMap.cabinet = buildCabinet();
+      sceneMap.chiller = buildChiller();
+
+      function waterTempFromProgress(p) {
+        const clamped = Math.min(1, Math.max(0, p));
+        const k = 2.7;
+        const raw = 1 - Math.exp(-k * clamped);
+        return 70 + (1 - 70) * (raw / (1 - Math.exp(-k)));
+      }
+
+      function pointOnPath(t, out) {
+        const path = chill.path;
+        let dist = ((t % 1) + 1) % 1 * path.total;
+        for (let i = 0; i < path.seg.length; i += 1) {
+          if (dist <= path.seg[i] || i === path.seg.length - 1) {
+            const u = path.seg[i] === 0 ? 0 : Math.min(1, dist / path.seg[i]);
+            return out.copy(path.loop[i]).lerp(path.loop[i + 1], u);
+          }
+          dist -= path.seg[i];
+        }
+        return out.copy(path.loop[0]);
+      }
+
+      function syncBanner() {
+        if (mode === "cabinet" && cab.overloaded && !cab.bannerClosed) {
+          alertBanner.hidden = false;
+          alertBanner.className = "banner warn";
+          alertTitle.textContent = "Advertencia de capacidad";
+          alertBody.textContent = capacityText();
+          return;
+        }
+        if (mode === "chiller" && chill.rejected && !chill.bannerClosed) {
+          alertBanner.hidden = false;
+          alertBanner.className = "banner err";
+          alertTitle.textContent = "Error de incompatibilidad";
+          alertBody.textContent = REJECT_TEXT;
+          return;
+        }
+        alertBanner.hidden = true;
+      }
+
+      function setMode(next) {
+        mode = next;
+        view = views[next];
+        activeScene = sceneMap[next];
+        document.getElementById("panel").hidden = next !== "rollin";
+        document.getElementById("panelCab").hidden = next !== "cabinet";
+        document.getElementById("panelChill").hidden = next !== "chiller";
+        document.querySelectorAll("#tabs button").forEach((btn) => {
+          const on = btn.dataset.mode === next;
+          btn.classList.toggle("active", on);
+          btn.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        const col = { rollin: 1, cabinet: 2, chiller: 3 }[next];
+        document.querySelectorAll("#cmp tr").forEach((row) => {
+          [...row.children].forEach((cell, index) => {
+            cell.classList.toggle("is-on", index === col);
+          });
+        });
+        syncBanner();
+        applyCamera();
+      }
+
+      function startCabinetLoad() {
+        const slots = cabinetSlots();
+        if (cab.count >= slots.length) return;
+        cab.phase = "loading";
+        cab.active = slots[cab.count];
+        cab.slideT = 0;
+        const tray = cab.trays[cab.active];
+        tray.pivot.visible = true;
+        tray.pivot.position.z = cab.outsideZ;
+      }
+
+      function startCabinetUnload() {
+        if (cab.count <= 0) return;
+        const slots = cabinetSlots();
+        cab.phase = "unloading";
+        cab.active = slots[cab.count - 1];
+        cab.slideT = 0;
+        cab.chilling = false;
+      }
+
+      function updateCabinet(dt) {
+        if (cab.phase === "loading" || cab.phase === "unloading") {
+          cab.slideT += dt / 0.42;
+          const done = cab.slideT >= 1;
+          const u = ease(Math.min(1, cab.slideT));
+          const tray = cab.trays[cab.active];
+          tray.pivot.visible = true;
+          if (cab.phase === "loading") {
+            tray.pivot.position.z = cab.outsideZ + (cab.insideZ - cab.outsideZ) * u;
+            if (done) {
+              tray.pivot.position.z = cab.insideZ;
+              cab.count += 1;
+              cab.slideT = 0;
+              noteWeight();
+              const slots = cabinetSlots();
+              if (cab.count >= slots.length) {
+                cab.phase = "idle";
+                cab.active = -1;
+              } else {
+                cab.active = slots[cab.count];
+                cab.trays[cab.active].pivot.visible = true;
+                cab.trays[cab.active].pivot.position.z = cab.outsideZ;
+              }
+            }
+          } else {
+            tray.pivot.position.z = cab.insideZ + (cab.outsideZ - cab.insideZ) * u;
+            if (done) {
+              tray.pivot.visible = false;
+              tray.pivot.position.z = cab.outsideZ;
+              cab.temps[cab.active] = 90;
+              cab.count -= 1;
+              cab.slideT = 0;
+              if (cab.count <= 0) {
+                cab.phase = "idle";
+                cab.active = -1;
+                cab.bannerClosed = false;
+                cab.holding = false;
+                cab.paused = false;
+                cab.elapsed = 0;
+                noteWeight();
+              } else {
+                cab.active = cabinetSlots()[cab.count - 1];
+                noteWeight();
+              }
+            }
+          }
+        }
+
+        if (cab.chilling) {
+          const rate = cab.overloaded ? 0.7 : 1;
+          cab.elapsed += dt * 1000 * rate;
+          const slots = cabinetSlots();
+          if (cab.elapsed >= CYCLE_MS) {
+            cab.elapsed = CYCLE_MS;
+            cab.chilling = false;
+            cab.holding = true;
+            for (let n = 0; n < cab.count; n += 1) cab.temps[slots[n]] = 3;
+          } else {
+            const p = cab.elapsed / CYCLE_MS;
+            const denom = Math.max(1, slots.length - 1);
+            for (let n = 0; n < cab.count; n += 1) {
+              cab.temps[slots[n]] = tempFromProgress(Math.min(1, p * (1 + (n / denom) * 0.2)));
+            }
+          }
+        }
+        const slots = cabinetSlots();
+        let sum = 0;
+        for (let i = 0; i < 15; i += 1) {
+          colorForTemp(cab.temps[i], _color);
+          cab.trays[i].mat.color.copy(_color);
+          cab.trays[i].mat.emissive.copy(_color);
+        }
+        for (let n = 0; n < cab.count; n += 1) sum += cab.temps[slots[n]];
+        cab.avg = cab.count
+          ? sum / cab.count
+          : (cab.elapsed > 0 ? tempFromProgress(Math.min(1, cab.elapsed / CYCLE_MS)) : null);
+        const spin = cab.chilling ? 14 : (cab.holding || cab.paused) ? 6 : 0.8;
+        for (const fan of cab.fans) fan.rotation.z += dt * spin;
+        cab.coldLight.intensity = cab.chilling ? 5 : (cab.holding || cab.paused) ? 1.8 : 0;
+        const airOn = cab.chilling || cab.holding || cab.paused;
+        cab.air.mesh.visible = airOn;
+        cab.airLabel.visible = cab.chilling || cab.paused;
+        cab.air.material.opacity = cab.chilling ? 0.92 : 0.5;
+        if (airOn) {
+          const speed = cab.chilling ? 1 : 0.42;
+          const time = performance.now() * 0.001;
+          for (let i = 0; i < cab.air.count; i += 1) {
+            const i3 = i * 3;
+            cab.airPos[i3] += (cab.airVel[i3] + Math.sin(time * 1.8 + i) * 0.05) * speed * dt;
+            cab.airPos[i3 + 1] += cab.airVel[i3 + 1] * speed * dt;
+            cab.airPos[i3 + 2] += (cab.airVel[i3 + 2] + Math.cos(time * 1.4 + i) * 0.04) * speed * dt;
+            if (
+              cab.airPos[i3 + 1] < 0.52
+              || Math.abs(cab.airPos[i3]) > 0.3
+              || cab.airPos[i3 + 2] > 0.36
+              || cab.airPos[i3 + 2] < -0.28
+            ) cab.respawnAir(i, false);
+            _dir.set(cab.airVel[i3], cab.airVel[i3 + 1], cab.airVel[i3 + 2]).normalize();
+            _dummy.position.set(cab.airPos[i3], cab.airPos[i3 + 1], cab.airPos[i3 + 2]);
+            _dummy.quaternion.setFromUnitVectors(_yAxis, _dir);
+            const s = cab.airScale[i];
+            _dummy.scale.set(s, s, s);
+            _dummy.updateMatrix();
+            cab.air.mesh.setMatrixAt(i, _dummy.matrix);
+          }
+          cab.air.mesh.instanceMatrix.needsUpdate = true;
+        }
+      }
+
+      function updateChiller(dt) {
+        if (chill.running) {
+          chill.elapsed += dt * 1000;
+          if (chill.elapsed >= CYCLE_MS) {
+            chill.elapsed = CYCLE_MS;
+            chill.temp = 1;
+            chill.running = false;
+            chill.holding = true;
+          } else {
+            chill.temp = waterTempFromProgress(chill.elapsed / CYCLE_MS);
+          }
+        }
+        const chillLive = chill.running || chill.paused || chill.holding;
+        chill.offset = (chill.offset + dt * (chillLive ? 0.16 : 0)) % 1;
+        const flowing = chillLive;
+        chill.flow.visible = flowing;
+        if (flowing) {
+          for (let i = 0; i < 32; i += 1) {
+            const t0 = chill.offset + i / 32;
+            pointOnPath(t0, _dummy.position);
+            pointOnPath(t0 + 0.01, _dir);
+            _dir.sub(_dummy.position);
+            if (_dir.lengthSq() < 1e-6) _dir.set(0, 1, 0);
+            else _dir.normalize();
+            _dummy.quaternion.setFromUnitVectors(_yAxis, _dir);
+            _dummy.scale.set(1.7, 1.7, 1.7);
+            _dummy.updateMatrix();
+            chill.flow.setMatrixAt(i, _dummy.matrix);
+          }
+          chill.flow.instanceMatrix.needsUpdate = true;
+        }
+        colorForTemp(Math.max(3, chill.temp), _color);
+        chill.sauceMat.color.copy(_color);
+        chill.sauceMat.emissive.copy(_color);
+        chill.doughMat.color.copy(_color);
+        chill.doughMat.emissive.copy(_color);
+        if (chill.unitFan && (chill.running || chill.paused || chill.holding)) {
+          chill.unitFan.rotation.z += dt * (chill.running || chill.paused ? 12 : 5);
+        }
+        if (chill.ghostT > 0) {
+          chill.ghostT -= dt;
+          chill.ghost.visible = chill.ghostT > 0;
+        }
+      }
+
+      function updateCabinetUI() {
+        const countEl = document.getElementById("cabCount");
+        const kgEl = document.getElementById("cabKg");
+        const tempEl = document.getElementById("cabTemp");
+        const powerEl = document.getElementById("cabPower");
+        const statusEl = document.getElementById("cabStatus");
+        const pillEl = document.getElementById("cabPill");
+        const loadBtn = document.getElementById("btnCabLoad");
+        const blastBtn = document.getElementById("btnCabBlast");
+        const maxTrays = cabinetSlots().length;
+        const kg = cab.count * traySpec().kg;
+        countEl.innerHTML = cab.count + "<em> / " + maxTrays + "</em>";
+        kgEl.innerHTML = num.format(kg) + "<em> / 50 kg</em>";
+        tempEl.innerHTML = cab.avg == null ? "—" : num.format(cab.avg) + "<em> °C</em>";
+        const airEl = document.getElementById("cabAir");
+        if (cab.chilling || cab.paused) airEl.innerHTML = "−35,0<em> °C</em>";
+        else if (cab.holding) airEl.innerHTML = "0,0<em> °C</em>";
+        else if (!cab.count) airEl.textContent = "—";
+        else airEl.innerHTML = "18,0<em> °C</em>";
+        document.getElementById("cabTime").innerHTML = clock(cab.elapsed) + "<em> / 90:00</em>";
+        document.getElementById("cabBar").style.width = (100 * cab.elapsed / CYCLE_MS) + "%";
+        drawCurve(
+          document.getElementById("cabChart"),
+          document.getElementById("cabChart").getContext("2d"),
+          cab.elapsed / CYCLE_MS,
+          cab.avg == null ? 90 : cab.avg,
+          tempFromProgress,
+          3,
+          90
+        );
+        let power = 0;
+        const cabFactor = cab.overloaded ? 0.7 : 1;
+        if (cab.chilling || cab.paused) {
+          const load = Math.max(0, ((cab.avg || 90) - 3) / 87);
+          power = (2.4 + 2.6 * Math.pow(load, 0.8)) * cabFactor;
+        } else if (cab.holding) {
+          power = 0.85 * cabFactor;
+        } else if (cab.count > 0) power = 0.08;
+        powerEl.innerHTML = num.format(power) + "<em> kW</em>";
+        const loadLabel = loadBtn.querySelector("strong");
+        const loadHint = loadBtn.querySelector("small");
+        const maxTraysNow = cabinetSlots().length;
+        const trayName = trayFormat === "deep" ? "Cubeta" : "Bandeja";
+        if (cab.phase === "loading") {
+          loadLabel.textContent = "Cargando…";
+          loadHint.textContent = trayName + " " + Math.min(maxTraysNow, cab.count + 1) + " de " + maxTraysNow;
+        } else if (cab.phase === "unloading") {
+          loadLabel.textContent = "Vaciando…";
+          loadHint.textContent = "Salen de a una";
+        } else if (cab.count === 0) {
+          loadLabel.textContent = trayFormat === "deep" ? "Cargar cubetas de 20 L" : "Cargar bandejas";
+          loadHint.textContent = trayFormat === "deep"
+            ? "Entran de a una, hasta 5. Cada una ocupa 3 guías"
+            : "Entran de a una, hasta 15";
+        } else {
+          loadLabel.textContent = "Vaciar bandejas";
+          loadHint.textContent = "Se retiran de a una";
+        }
+        const blastLabel = blastBtn.querySelector("strong");
+        if (cab.chilling) blastLabel.textContent = "Detener abatimiento";
+        else if (cab.holding) blastLabel.textContent = "Reiniciar ciclo";
+        else if (cab.paused) blastLabel.textContent = "Reanudar abatimiento";
+        else blastLabel.textContent = "Iniciar abatimiento";
+        loadBtn.disabled = cab.phase !== "idle";
+        blastBtn.disabled = cab.phase !== "idle" || cab.count === 0;
+        let state = "idle";
+        let pillText = "Vacío";
+        let status = "Armario vacío. El compresor está en la base: no hay cañerías ni condensadora remota.";
+        if (cab.phase === "loading") {
+          state = "idle";
+          pillText = "Cargando";
+          status = "Las bandejas entran a mano, de a una, por la puerta.";
+        } else if (cab.phase === "unloading") {
+          pillText = "Vaciando";
+          status = "Las bandejas salen de a una.";
+        } else if (cab.chilling) {
+          state = "run";
+          pillText = "Abatiendo";
+          status = cab.overloaded
+            ? (cab.warnKind === "weight"
+              ? "Abatimiento con rendimiento reducido un 30% porque las cubetas de 20 L superan los 50 kg."
+              : "Abatimiento con rendimiento reducido un 30% por la sobrecarga del carro 201.")
+            : "Abatimiento en el armario. Aire interno, compresor incorporado.";
+        } else if (cab.holding) {
+          state = "hold";
+          pillText = "Listo";
+          status = "Producto a 3 °C.";
+        } else if (cab.count > 0) {
+          state = "hot";
+          pillText = "Cargado";
+          status = "Hay " + cab.count + " de " + maxTrays + " dentro (" + num.format(kg) + " kg). El tope es " + maxTrays + " o 50 kg.";
+        }
+        if (cab.paused && cab.avg != null) {
+          status = "Punto de la curva: producto a " + num.format(cab.avg) + " °C, aire a −35 °C.";
+          state = "pause";
+          pillText = "En la curva";
+        } else if (cab.overloaded && cab.phase === "idle" && !cab.chilling && !cab.holding) {
+          status = capacityText();
+          state = "pause";
+          pillText = "Sobrecarga";
+        }
+        pillEl.className = "pill " + state;
+        pillEl.textContent = pillText;
+        statusEl.textContent = status;
+        const ctx = cab.screenCtx;
+        ctx.fillStyle = "#0e141c";
+        ctx.fillRect(0, 0, 512, 280);
+        ctx.fillStyle = "#93a0b0";
+        ctx.font = "600 28px Segoe UI, sans-serif";
+        ctx.fillText(trayFormat === "deep" ? "ARMARIO  20 L" : "ARMARIO 15", 28, 48);
+        ctx.fillStyle = cab.overloaded ? "#f5b942" : "#e8eef5";
+        ctx.font = "700 72px Segoe UI, sans-serif";
+        ctx.fillText(cab.count + " / " + maxTrays, 28, 150);
+        ctx.font = "600 28px Segoe UI, sans-serif";
+        ctx.fillStyle = "#d5dee8";
+        ctx.fillText(num.format(kg) + " kg" + (cab.overloaded ? "   −30%" : ""), 28, 220);
+        cab.screenTex.needsUpdate = true;
+        syncFormatUi();
+      }
+
+      function updateChillerUI() {
+        const waterEl = document.getElementById("chillWater");
+        const processEl = document.getElementById("chillProcess");
+        const flowEl = document.getElementById("chillFlow");
+        const powerEl = document.getElementById("chillPower");
+        const statusEl = document.getElementById("chillStatus");
+        const pillEl = document.getElementById("chillPill");
+        const runBtn = document.getElementById("btnChillRun");
+        const timeEl = document.getElementById("chillTime");
+        const barEl = document.getElementById("chillBar");
+        const water = chill.running || chill.paused || chill.holding ? 1 : 18;
+        const flow = chill.running || chill.paused ? 2.4 : chill.holding ? 1.1 : 0;
+        const power = chill.running || chill.paused ? 7.6 : chill.holding ? 2.2 : 0.1;
+        waterEl.innerHTML = (water > 10 ? num.format(water) : "+1,0") + "<em> °C</em>";
+        processEl.innerHTML = num.format(chill.temp) + "<em> °C</em>";
+        timeEl.innerHTML = clock(chill.elapsed) + "<em> / 90:00</em>";
+        flowEl.innerHTML = num.format(flow) + "<em> m³/h</em>";
+        powerEl.innerHTML = num.format(power) + "<em> kW</em>";
+        barEl.style.width = (100 * chill.elapsed / CYCLE_MS) + "%";
+        drawCurve(
+          document.getElementById("chillChart"),
+          document.getElementById("chillChart").getContext("2d"),
+          chill.elapsed / CYCLE_MS,
+          chill.temp,
+          waterTempFromProgress,
+          1,
+          70
+        );
+        const label = runBtn.querySelector("strong");
+        const hint = runBtn.querySelector("small");
+        if (chill.running) {
+          label.textContent = "Detener circulación";
+          hint.textContent = "El agua sigue en circuito cerrado";
+        } else if (chill.holding) {
+          label.textContent = "Reiniciar proceso";
+          hint.textContent = "Salsa y masa ya están a +1 °C";
+        } else if (chill.paused) {
+          label.textContent = "Reanudar proceso";
+          hint.textContent = "Sigue desde el punto de la curva";
+        } else {
+          label.textContent = "Enfriar Salsa / Masa";
+          hint.textContent = "Agua helada en circuito cerrado";
+        }
+        let state = "idle";
+        let pillText = "En espera";
+        let status = "Tanque cerrado con serpentín sumergido. El agua va y vuelve del estanque de proceso, que se mantiene a +1 °C.";
+        if (chill.paused) {
+          state = "pause";
+          pillText = "En la curva";
+          status = "Punto de la curva: producto a " + num.format(chill.temp) + " °C, agua a +1 °C, caudal 2,4 m³/h.";
+        } else if (chill.running) {
+          state = "run";
+          pillText = "Enfriando";
+          status = "Circula agua a +1 °C entre el serpentín y el estanque, para salsa de iVario o masa de panadería.";
+        } else if (chill.holding) {
+          state = "hold";
+          pillText = "A +1 °C";
+          status = "La salsa y la masa llegaron a +1 °C. El circuito se mantiene en marcha suave.";
+        }
+        if (chill.rejected && !chill.running && !chill.holding && !chill.paused) {
+          status = REJECT_TEXT;
+          state = "hot";
+          pillText = "Incompatible";
+        }
+        pillEl.className = "pill " + state;
+        pillEl.textContent = pillText;
+        statusEl.textContent = status;
+      }
+
+      function curveProgress(canvas, event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / Math.max(1, rect.width)) * canvas.width;
+        return Math.min(1, Math.max(0, (x - 12) / (canvas.width - 24)));
+      }
+
+      function bindCurve(canvas, apply) {
+        let dragging = false;
+        function at(event) {
+          apply(curveProgress(canvas, event));
+        }
+        canvas.addEventListener("pointerdown", (event) => {
+          dragging = true;
+          canvas.setPointerCapture(event.pointerId);
+          at(event);
+        });
+        canvas.addEventListener("pointermove", (event) => {
+          if (dragging) at(event);
+        });
+        canvas.addEventListener("pointerup", (event) => {
+          if (!dragging) return;
+          dragging = false;
+          at(event);
+        });
+        canvas.addEventListener("pointercancel", () => {
+          dragging = false;
+        });
+      }
+
+      function scrubRoll(p) {
+        sim.blasting = false;
+        if (p <= 0.002) {
+          sim.elapsed = 0;
+          sim.holding = false;
+          sim.paused = false;
+          setTemps(90);
+          return;
+        }
+        if (p >= 0.998) {
+          sim.elapsed = CYCLE_MS;
+          sim.holding = true;
+          sim.paused = false;
+          setTemps(3);
+          return;
+        }
+        sim.elapsed = p * CYCLE_MS;
+        sim.holding = false;
+        sim.paused = true;
+        for (let i = 0; i < 20; i += 1) {
+          sim.temps[i] = tempFromProgress(Math.min(1, p * (1 + (i / 19) * 0.22)));
+        }
+        applyTemps();
+      }
+
+      function scrubCabinet(p) {
+        cab.chilling = false;
+        const slots = cabinetSlots();
+        if (p <= 0.002) {
+          cab.elapsed = 0;
+          cab.holding = false;
+          cab.paused = false;
+          for (const slot of slots) cab.temps[slot] = 90;
+          return;
+        }
+        if (p >= 0.998) {
+          cab.elapsed = CYCLE_MS;
+          cab.holding = true;
+          cab.paused = false;
+          for (let n = 0; n < cab.count; n += 1) cab.temps[slots[n]] = 3;
+          return;
+        }
+        cab.elapsed = p * CYCLE_MS;
+        cab.holding = false;
+        cab.paused = true;
+        const denom = Math.max(1, slots.length - 1);
+        for (let n = 0; n < cab.count; n += 1) {
+          cab.temps[slots[n]] = tempFromProgress(Math.min(1, p * (1 + (n / denom) * 0.2)));
+        }
+      }
+
+      function scrubChill(p) {
+        chill.running = false;
+        if (p <= 0.002) {
+          chill.elapsed = 0;
+          chill.holding = false;
+          chill.paused = false;
+          chill.temp = 70;
+          return;
+        }
+        if (p >= 0.998) {
+          chill.elapsed = CYCLE_MS;
+          chill.holding = true;
+          chill.paused = false;
+          chill.temp = 1;
+          return;
+        }
+        chill.elapsed = p * CYCLE_MS;
+        chill.holding = false;
+        chill.paused = true;
+        chill.temp = waterTempFromProgress(p);
+      }
+
+      bindCurve(chart, scrubRoll);
+      bindCurve(document.getElementById("cabChart"), scrubCabinet);
+      bindCurve(document.getElementById("chillChart"), scrubChill);
+
+      document.getElementById("btnCabLoad").addEventListener("click", () => {
+        if (cab.phase !== "idle") return;
+        if (cab.count === 0) startCabinetLoad();
+        else startCabinetUnload();
+      });
+
+      document.getElementById("btnCabOver").addEventListener("click", () => {
+        if (cab.phase !== "idle") return;
+        cab.overloaded = true;
+        cab.warnKind = trayFormat === "deep" ? "cart-deep" : "cart";
+        cab.bannerClosed = false;
+        showLeftovers();
+        if (cab.count === 0) startCabinetLoad();
+        syncBanner();
+      });
+
+      document.querySelectorAll("[data-format]").forEach((btn) => {
+        btn.addEventListener("click", () => setTrayFormat(btn.dataset.format));
+      });
+
+      document.getElementById("btnCabBlast").addEventListener("click", () => {
+        if (cab.phase !== "idle" || cab.count === 0) return;
+        if (cab.chilling) {
+          cab.chilling = false;
+          cab.paused = cab.elapsed > 0 && cab.elapsed < CYCLE_MS;
+          return;
+        }
+        cab.paused = false;
+        if (cab.holding || cab.elapsed >= CYCLE_MS) {
+          cab.elapsed = 0;
+          cab.holding = false;
+          const slots = cabinetSlots();
+          for (let n = 0; n < cab.count; n += 1) cab.temps[slots[n]] = 90;
+        }
+        cab.chilling = true;
+      });
+
+      document.getElementById("btnChillRun").addEventListener("click", () => {
+        if (chill.running) {
+          chill.running = false;
+          chill.paused = chill.elapsed > 0 && chill.elapsed < CYCLE_MS;
+          return;
+        }
+        chill.paused = false;
+        if (chill.holding) {
+          chill.temp = 70;
+          chill.holding = false;
+          chill.elapsed = 0;
+        }
+        chill.running = true;
+      });
+
+      document.getElementById("btnChillReject").addEventListener("click", () => {
+        chill.rejected = true;
+        chill.bannerClosed = false;
+        chill.ghost.visible = true;
+        chill.ghostT = 2.4;
+        syncBanner();
+      });
+
+      document.getElementById("alertClose").addEventListener("click", () => {
+        if (mode === "cabinet") cab.bannerClosed = true;
+        if (mode === "chiller") chill.bannerClosed = true;
+        alertBanner.hidden = true;
+      });
+
+      document.querySelectorAll("#tabs button").forEach((btn) => {
+        btn.addEventListener("click", () => setMode(btn.dataset.mode));
+      });
+
+      document.getElementById("btnReport").addEventListener("click", () => {
+        const appEl = document.getElementById("app");
+        const closed = appEl.classList.toggle("report-closed");
+        const toggle = document.getElementById("btnReport");
+        toggle.setAttribute("aria-expanded", closed ? "false" : "true");
+        toggle.querySelector("small").textContent = closed ? "Mostrar panel" : "Ocultar panel";
+        applyCamera();
+      });
+      applyTrayGeometry();
+      syncFormatUi();
+      setMode("rollin");
+
+      applyTemps();
+      placeCart();
+      applyCamera();
+      updateUI();
+
+      const clock3 = new THREE.Clock();
+      function frame() {
+        const dt = Math.min(clock3.getDelta(), 0.05);
+        updateMotion(dt);
+        updateBlast(dt);
+        const flowing = airActive();
+        particles.mesh.visible = flowing;
+        particles.material.opacity = sim.blasting ? 0.88 : 0.4;
+        coldLabel.visible = sim.inside && (sim.blasting || sim.paused);
+        if (flowing) writeParticles(dt);
+        const fanSpeed = !sim.inside ? 0 : sim.blasting ? 16 : (sim.holding || sim.paused) ? 7 : 0;
+        if (fanSpeed) {
+          for (const fan of sim.fans) fan.rotation.z += dt * fanSpeed;
+        }
+        coldLight.intensity = !sim.inside ? 0 : sim.blasting ? 6.4 + Math.sin(performance.now() * 0.008) * 1.1 : (sim.holding || sim.paused) ? 2.2 : 0;
+        ovenLight.color.set(sim.blasting ? 0xdbeafe : 0xfff4e5);
+        updateCabinet(dt);
+        updateChiller(dt);
+        updateUI();
+        updateCabinetUI();
+        updateChillerUI();
+        renderer.render(activeScene, camera);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
